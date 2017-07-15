@@ -15,13 +15,20 @@ if (UNIX)
         ALWAYS 0
     )
 elseif(MINGW)
+    list(APPEND PYQT_conf --confirm-license --target-py-version 3.6)
+    list(APPEND PYQT_conf --bindir ${PREFIX_ext_pyqt}/bin --qt ${PREFIX_ext_pyqt})
+    list(APPEND PYQT_conf --sip ${PREFIX_ext_pyqt}/bin/sip.exe --sip-incdir ${PREFIX_ext_pyqt}/include)
+    list(APPEND PYQT_conf --spec win32-g++ --verbose --sipdir ${PREFIX_ext_pyqt}/share/sip)
+    list(APPEND PYQT_conf --destdir ${PREFIX_ext_pyqt}/lib/site-packages --no-qml-plugin --no-python-dbus)
+    list(APPEND PYQT_conf --no-qsci-api --no-tools --disable QtSql --disable QtTest --disable QtWinExtras)
     ExternalProject_Add( ext_pyqt
         DOWNLOAD_DIR ${EXTERNALS_DOWNLOAD_DIR}
-        URL http://files.kde.org/krita/build/dependencies/PyQt5_gpl-5.6.zip
-        URL_MD5 916e79bacda1799f8db7bc034043e450
-        
-        CONFIGURE_COMMAND python.exe <SOURCE_DIR>/configure.py --confirm-license --target-py-version 3.6 --bindir {PREFIX_ext_pyqt}/bin --qt ${PREFIX_ext_pyqt} --sip ${PREFIX_ext_pyqt}/bin/sip.exe --sip-incdir ${PREFIX_ext_pyqt}/include --target-py-version 3.6 --spec win32-g++ --verbose --sipdir ${PREFIX_ext_pyqt}/share/sip --destdir ${PREFIX_ext_pyqt}/bin --no-qml-plugin --no-python-dbus --no-qsci-api --no-tools
-        BUILD_COMMAND mingw32-make
+        URL https://sourceforge.net/projects/pyqt/files/PyQt5/PyQt-5.9/PyQt5_gpl-5.9.zip
+        URL_MD5 d978884753df265896eda436d8f4e07b
+        PATCH_COMMAND  ${PATCH_COMMAND} -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/pyqt-configure-without-qt-ssl.patch
+
+        CONFIGURE_COMMAND python.exe <SOURCE_DIR>/configure.py ${PYQT_conf}
+        BUILD_COMMAND mingw32-make CXXFLAGS=-D_hypot=hypot
         INSTALL_COMMAND mingw32-make install
         
         BUILD_IN_SOURCE 1
