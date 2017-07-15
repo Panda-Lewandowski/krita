@@ -33,8 +33,9 @@ ELSE(SIP_VERSION)
 
   FIND_FILE(_find_sip_py FindSIP.py PATHS ${CMAKE_MODULE_PATH})
 
-  EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} ${_find_sip_py} OUTPUT_VARIABLE sip_config)
-  
+  MESSAGE(STATUS "PYTHONPATH=${CMAKE_PREFIX_PATH}/lib/site-packages")
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_PREFIX_PATH}/lib/site-packages" ${PYTHON_EXECUTABLE} ${_find_sip_py} OUTPUT_VARIABLE sip_config)
+
   IF(sip_config)
     STRING(REGEX REPLACE "^sip_version:([^\n]+).*$" "\\1" SIP_VERSION ${sip_config})
     STRING(REGEX REPLACE ".*\nsip_version_str:([^\n]+).*$" "\\1" SIP_VERSION_STR ${sip_config})
