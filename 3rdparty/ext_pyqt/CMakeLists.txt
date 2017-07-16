@@ -12,7 +12,6 @@ if (UNIX)
         BUILD_IN_SOURCE 1
 
         UPDATE_COMMAND ""
-        ALWAYS 0
     )
 elseif(MINGW)
     list(APPEND PYQT_conf --confirm-license --target-py-version 3.6)
@@ -34,7 +33,6 @@ elseif(MINGW)
         BUILD_IN_SOURCE 1
 
         UPDATE_COMMAND ""
-        ALWAYS 0
     )
 
 endif()
