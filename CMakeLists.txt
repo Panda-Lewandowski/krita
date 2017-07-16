@@ -193,6 +193,10 @@ include(MacroJPEG)
 find_package(PythonInterp 3.0)
 find_package(PythonLibrary 3.0)
 
+# Special check: Building on Windows and ext_python is used
+if(WIN32 AND ${PYTHONLIBS_FOUND})
+    include("${CMAKE_CURRENT_SOURCE_DIR}/PythonWindowsCheck.cmake")
+endif(WIN32)
 
  ########################
 #########################
