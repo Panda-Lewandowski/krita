@@ -18,7 +18,7 @@ elseif(MINGW)
     list(APPEND PYQT_conf --bindir ${PREFIX_ext_pyqt}/bin --qt ${PREFIX_ext_pyqt})
     list(APPEND PYQT_conf --sip ${PREFIX_ext_pyqt}/bin/sip.exe --sip-incdir ${PREFIX_ext_pyqt}/include)
     list(APPEND PYQT_conf --spec win32-g++ --verbose --sipdir ${PREFIX_ext_pyqt}/share/sip)
-    list(APPEND PYQT_conf --destdir ${PREFIX_ext_pyqt}/lib/site-packages --no-qml-plugin --no-python-dbus)
+    list(APPEND PYQT_conf --destdir ${PREFIX_ext_pyqt}/share/krita/pykrita --no-qml-plugin --no-python-dbus)
     list(APPEND PYQT_conf --no-qsci-api --no-tools --disable QtSql --disable QtTest --disable QtWinExtras)
     ExternalProject_Add( ext_pyqt
         DOWNLOAD_DIR ${EXTERNALS_DOWNLOAD_DIR}

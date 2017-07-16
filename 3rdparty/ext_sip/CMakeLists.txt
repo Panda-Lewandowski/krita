@@ -15,7 +15,7 @@ if (UNIX)
     )
 elseif (MINGW)
     list(APPEND SIP_conf --platform win32-g++ -b ${PREFIX_ext_sip}/bin)
-    list(APPEND SIP_conf -d ${PREFIX_ext_sip}/lib/site-packages -e ${PREFIX_ext_sip}/include)
+    list(APPEND SIP_conf -d ${PREFIX_ext_sip}/share/krita/pykrita -e ${PREFIX_ext_sip}/include)
     list(APPEND SIP_conf --sipdir ${PREFIX_ext_sip}/share/sip --target-py-version 3.6)
     ExternalProject_Add( ext_sip
         DOWNLOAD_DIR ${EXTERNALS_DOWNLOAD_DIR}
