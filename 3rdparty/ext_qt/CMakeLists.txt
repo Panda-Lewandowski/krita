@@ -1,10 +1,33 @@
 SET(EXTPREFIX_qt  "${EXTPREFIX}")
 if (WIN32)
+  set(Qt_QMAKE_LFLAGS "-Wl,--dynamicbase -Wl,--nxcompat -Wl,--disable-auto-image-base \
+    -Wl,--high-entropy-va -Wl,--image-base,0x14000000")
+  list(APPEND QT_conf -skip qt3d -skip qtactiveqt -skip qtcanvas3d
+    -skip qtconnectivity -skip qtdoc -skip qtenginio -skip qtgraphicaleffects
+    -skip qtlocation -skip qtsensors -skip qtserialport -skip qtwayland
+    -skip qtwebchannel -skip qtwebengine -skip qtwebsockets -skip qtwebview
+    -skip qtxmlpatterns -no-sql-sqlite -nomake examples -nomake tools
+    -no-compile-examples -no-dbus -no-iconv -no-angle -no-qml-debug -no-ssl
+    -no-openssl -no-libproxy -no-system-proxies -no-icu -no-mtdev
+    -skip qtcharts -skip qtdatavis3d -skip qtgamepad -skip qtnetworkauth
+    -skip qtpurchasing -skip qtremoteobjects -skip qtscxml -skip qtserialbus
+    -skip qtspeech -skip qtvirtualkeyboard
+    #
+    -opengl desktop -qt-zlib -qt-pcre -qt-libpng -qt-libjpeg
+    #
+    -opensource -confirm-license
+    #
+    -release -platform win32-g++ -prefix "%BUILDDIR_INSTALL%"
+    # TODO: Move this elsewhere
+    QMAKE_LFLAGS+=${Qt_QMAKE_LFLAGS}
+    # TODO: Make this conditional
+    -force-debug-info
+  )
   ExternalProject_Add(
       ext_qt
       DOWNLOAD_DIR ${EXTERNALS_DOWNLOAD_DIR}
-      URL https://download.qt.io/official_releases/qt/5.6/5.6.1-1/single/qt-everywhere-opensource-src-5.6.1-1.zip
-      URL_MD5 9d7ea0cadcec7b5a63e8e83686756978
+      URL https://download.qt.io/archive/qt/5.9/5.9.1/single/qt-everywhere-opensource-src-5.9.1.zip
+      URL_MD5 3f2e538ccc468d28bcfdefac96d1e975
       PATCH_COMMAND  ${PATCH_COMMAND} -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/disable-wintab.diff
             COMMAND  ${PATCH_COMMAND} -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/qtgui-private-headers.diff
             COMMAND  ${PATCH_COMMAND} -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/0001-Don-t-request-the-MIME-image-every-time-Windows-asks.patch
@@ -12,7 +35,7 @@ if (WIN32)
             COMMAND  ${PATCH_COMMAND} -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/0003-Hack-for-fullscreen-workaround.patch
 
       INSTALL_DIR ${EXTPREFIX_qt}
-      CONFIGURE_COMMAND <SOURCE_DIR>/configure.bat -skip qt3d -skip qtactiveqt -skip qtcanvas3d -skip qtconnectivity -skip qtdoc -skip qtenginio -skip qtgraphicaleffects -skip qtlocation -skip qtsensors -skip qtserialport -skip qtwayland -skip qtwebchannel -skip qtwebengine -skip qtwebsockets -skip qtwebview -skip qtxmlpatterns -no-sql-sqlite -nomake examples -nomake tools -no-compile-examples -no-dbus -no-iconv -no-angle -no-ssl -no-openssl -no-wmf-backend -no-qml-debug -no-libproxy -no-system-proxies -no-nis -no-icu -no-mtdev -opensource -confirm-license -release -opengl desktop -qt-zlib -qt-pcre -qt-libpng -qt-libjpeg -prefix ${EXTPREFIX_qt} -platform win32-g++
+      CONFIGURE_COMMAND <SOURCE_DIR>/configure.bat ${QT_conf}
 
       # use this line for building Qt with debugging info enabled
       #CONFIGURE_COMMAND <SOURCE_DIR>/configure.bat -release -force-debug-info -skip qt3d -skip qtactiveqt -skip qtcanvas3d -skip qtconnectivity -skip qtdoc -skip qtenginio -skip qtgraphicaleffects -skip qtlocation -skip qtsensors -skip qtserialport -skip qtwayland -skip qtwebchannel -skip qtwebengine -skip qtwebsockets -skip qtwebview -skip qtxmlpatterns -no-sql-sqlite -nomake examples -nomake tools -no-compile-examples -no-dbus -no-iconv -no-angle -no-ssl -no-openssl -no-wmf-backend -no-qml-debug -no-libproxy -no-system-proxies -no-nis -no-icu -no-mtdev -opensource -confirm-license -release -opengl desktop -qt-zlib -qt-pcre -qt-libpng -qt-libjpeg -prefix ${EXTPREFIX_qt} -platform win32-g++
@@ -20,7 +43,8 @@ if (WIN32)
       BUILD_COMMAND mingw32-make -j${SUBMAKE_JOBS}
       INSTALL_COMMAND mingw32-make -j${SUBMAKE_JOBS} install
       UPDATE_COMMAND ""
-      BUILD_IN_SOURCE 1
+      SOURCE_DIR s
+      BINARY_DIR b
       DEPENDS ext_patch
   )
 elseif (NOT APPLE)
