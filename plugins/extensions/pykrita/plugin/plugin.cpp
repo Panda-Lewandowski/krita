@@ -30,6 +30,12 @@
 #include <Krita.h>
 #include <Extension.h>
 
+#ifdef Q_OS_WIN
+#define PYTHONPATH_DELIM ";"
+#else
+#define PYTHONPATH_DELIM ":"
+#endif
+
 K_PLUGIN_FACTORY_WITH_JSON(KritaPyQtPluginFactory, "kritapykrita.json", registerPlugin<KritaPyQtPlugin>();)
 
 KritaPyQtPlugin::KritaPyQtPlugin(QObject *parent, const QVariantList &)
@@ -49,7 +55,7 @@ KritaPyQtPlugin::KritaPyQtPlugin(QObject *parent, const QVariantList &)
     QStringList pluginDirectories = KoResourcePaths::findDirs("pythonscripts");
     qDebug() << "\tPython plugin directories" << pluginDirectories;
     Q_FOREACH(const QString pluginDir, pluginDirectories) {
-        pythonPath.prepend(pluginDir.toUtf8() + ":");
+        pythonPath.prepend(pluginDir.toUtf8() + PYTHONPATH_DELIM);
     }
     qputenv("PYTHONPATH", pythonPath);
 
