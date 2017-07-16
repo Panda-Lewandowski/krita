@@ -9,7 +9,11 @@ project (krita-and-all-its-deps)
 # Example usage: cmake ..\kritadeposx -DEXTERNALS_DOWNLOAD_DIR=/dev2/d -DINSTALL_ROOT=/dev2/i -DWIN64_BUILD=TRUE  -DBOOST_LIBRARYDIR=/dev2/i/lib   -G "Visual Studio 11 Win64"
 
 
-cmake_minimum_required(VERSION 2.8.6)
+cmake_minimum_required(VERSION 3.6)
+
+if(NOT SUBMAKE_JOBS)
+	set(SUBMAKE_JOBS 1)
+endif(NOT SUBMAKE_JOBS)
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
 	message(FATAL_ERROR "Compiling in the source directory is not supported. Use for example 'mkdir build; cd build; cmake ..'.")

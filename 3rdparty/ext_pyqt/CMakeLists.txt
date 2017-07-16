@@ -27,8 +27,8 @@ elseif(MINGW)
         PATCH_COMMAND  ${PATCH_COMMAND} -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/pyqt-configure-without-qt-ssl.patch
 
         CONFIGURE_COMMAND python.exe <SOURCE_DIR>/configure.py ${PYQT_conf}
-        BUILD_COMMAND mingw32-make CXXFLAGS=-D_hypot=hypot
-        INSTALL_COMMAND mingw32-make install
+        BUILD_COMMAND mingw32-make -j${SUBMAKE_JOBS} CXXFLAGS=-D_hypot=hypot
+        INSTALL_COMMAND mingw32-make -j${SUBMAKE_JOBS} install
         
         BUILD_IN_SOURCE 1
 
