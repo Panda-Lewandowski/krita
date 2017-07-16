@@ -48,7 +48,7 @@ namespace PyKrita
 {
 namespace
 {
-QLibrary* s_pythonLibrary = 0;
+// QLibrary* s_pythonLibrary = 0;
 PyThreadState* s_pythonThreadState = 0;
 }                                                           // anonymous namespace
 
@@ -165,30 +165,31 @@ QString Python::lastTraceback() const
 
 void Python::libraryLoad()
 {
-    if (!s_pythonLibrary) {
-        dbgScript << "Creating s_pythonLibrary" << PYKRITA_PYTHON_LIBRARY;
-        s_pythonLibrary = new QLibrary(PYKRITA_PYTHON_LIBRARY);
-        if (!s_pythonLibrary)
-            errScript << "Could not create" << PYKRITA_PYTHON_LIBRARY;
-
-        s_pythonLibrary->setLoadHints(QLibrary::ExportExternalSymbolsHint);
-        if (!s_pythonLibrary->load())
-            errScript << "Could not load" << PYKRITA_PYTHON_LIBRARY;
+    // if (!s_pythonLibrary) {
+    //     dbgScript << "Creating s_pythonLibrary" << PYKRITA_PYTHON_LIBRARY;
+    //     s_pythonLibrary = new QLibrary(PYKRITA_PYTHON_LIBRARY);
+    //     if (!s_pythonLibrary)
+    //         errScript << "Could not create" << PYKRITA_PYTHON_LIBRARY;
+    // 
+    //     s_pythonLibrary->setLoadHints(QLibrary::ExportExternalSymbolsHint);
+    //     if (!s_pythonLibrary->load())
+    //         errScript << "Could not load" << PYKRITA_PYTHON_LIBRARY;
 
         Py_InitializeEx(0);
         if (!Py_IsInitialized())
-            errScript << "Could not initialise" << PYKRITA_PYTHON_LIBRARY;
+            //errScript << "Could not initialise" << PYKRITA_PYTHON_LIBRARY;
+            errScript << "Could not initialise python scripting";
 #if THREADED
         PyEval_InitThreads();
         s_pythonThreadState = PyGILState_GetThisThreadState();
         PyEval_ReleaseThread(s_pythonThreadState);
 #endif
-    }
+    // }
 }
 
 void Python::libraryUnload()
 {
-    if (s_pythonLibrary) {
+    // if (s_pythonLibrary) {
         // Shut the interpreter down if it has been started.
         if (Py_IsInitialized()) {
 #if THREADED
@@ -196,12 +197,12 @@ void Python::libraryUnload()
 #endif
             //Py_Finalize();
         }
-        if (s_pythonLibrary->isLoaded()) {
-            s_pythonLibrary->unload();
-        }
-        delete s_pythonLibrary;
-        s_pythonLibrary = 0;
-    }
+    //     if (s_pythonLibrary->isLoaded()) {
+    //         s_pythonLibrary->unload();
+    //     }
+    //     delete s_pythonLibrary;
+    //     s_pythonLibrary = 0;
+    // }
 }
 
 PyObject* Python::moduleActions(const char* moduleName)

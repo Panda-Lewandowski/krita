@@ -235,7 +235,7 @@ QString PyKrita::Engine::tryInitializeGetFailureReason()
     // 2) w/ site_packages/ dir of the Python
     QStringList pluginDirectories = KoResourcePaths::findDirs("pythonscripts");
     pluginDirectories << KoResourcePaths::locate("appdata", "plugins/pykrita/")
-                      << QLatin1String(PYKRITA_PYTHON_SITE_PACKAGES_INSTALL_DIR)
+                      //<< QLatin1String(PYKRITA_PYTHON_SITE_PACKAGES_INSTALL_DIR)
             ;
     dbgScript << "Plugin Directories: " << pluginDirectories;
     if (!py.prependPythonPaths(pluginDirectories)) {
