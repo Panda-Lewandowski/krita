@@ -23,7 +23,7 @@ elseif(MINGW)
             INSTALL_DIR ${PREFIX_ext_python}
             CONFIGURE_COMMAND ""
             BUILD_COMMAND ${CMAKE_COMMAND} -E echo deploying python3 64-bit binary
-            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/ ${PREFIX_ext_python}/bin
+            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/ ${PREFIX_ext_python}/python
             UPDATE_COMMAND ""
         )
     else("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
@@ -36,7 +36,7 @@ elseif(MINGW)
             INSTALL_DIR ${PREFIX_ext_python}
             CONFIGURE_COMMAND ""
             BUILD_COMMAND ${CMAKE_COMMAND} -E echo deploying python3 32-bit binary
-            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/ ${PREFIX_ext_python}/bin
+            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/ ${PREFIX_ext_python}/python
 
 
             UPDATE_COMMAND ""
