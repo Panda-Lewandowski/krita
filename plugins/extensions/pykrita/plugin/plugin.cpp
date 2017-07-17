@@ -49,7 +49,7 @@ KritaPyQtPlugin::KritaPyQtPlugin(QObject *parent, const QVariantList &)
     KisPreferenceSetRegistry *preferenceSetRegistry = KisPreferenceSetRegistry::instance();
     PyQtPluginSettingsFactory* settingsFactory = new PyQtPluginSettingsFactory(&m_engine);
 
-    QByteArray pythonPath = qgetenv("PYTHONPATH");
+    QByteArray pythonPath;// = qgetenv("PYTHONPATH");
     qDebug() << "\tPython path:" << pythonPath;
 
     QStringList pluginDirectories = KoResourcePaths::findDirs("pythonscripts");
@@ -58,6 +58,7 @@ KritaPyQtPlugin::KritaPyQtPlugin(QObject *parent, const QVariantList &)
         pythonPath.prepend(pluginDir.toUtf8() + PYTHONPATH_DELIM);
     }
     qputenv("PYTHONPATH", pythonPath);
+    qunsetenv("PYTHONHOME");
 
 
     //load and save preferences
