@@ -82,7 +82,7 @@ void tryInitDrMingw()
         return;
     }
     // Set the log file path to %LocalAppData%\kritacrash.log
-    QString logFile = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation).replace(L'/', L'\\') + QStringLiteral("\\kritacrash.log");
+    QString logFile = QCoreApplication::applicationDirPath().replace(L'/', L'\\') + QStringLiteral("\\..\\krita-crash.log");
     myExcHndlSetLogFileNameA(logFile.toLocal8Bit());
 }
 } // namespace
