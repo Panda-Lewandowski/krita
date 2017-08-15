@@ -137,6 +137,11 @@ extern "C" int main(int argc, char **argv)
     KisOpenGL::setDefaultFormat(enableOpenGLDebug, openGLDebugSynchronous);
 
 #ifdef Q_OS_WIN
+    {
+        QCoreApplication app(argc, argv);
+        KisLoggingManager::initializeLogFile(QCoreApplication::applicationDirPath() + "/../krita-debug.log");
+    }
+
     // Force ANGLE to use Direct3D11. D3D9 doesn't support OpenGL ES 3 and WARP
     //  might get weird crashes atm.
     qputenv("QT_ANGLE_PLATFORM", "d3d11");

@@ -18,8 +18,13 @@
 
 #include "KisLoggingManager.h"
 
-#include <QSet>
+#include <QDateTime>
+#include <QFile>
 #include <QLoggingCategory>
+#include <QSet>
+#include <QTextStream>
+
+#include <memory>
 
 using ScopedLogCapturer = KisLoggingManager::ScopedLogCapturer;
 
@@ -29,6 +34,25 @@ namespace
     QLoggingCategory::CategoryFilter oldCategoryFilter;
 
     QSet<const ScopedLogCapturer *> capturerSet;
+    std::unique_ptr<QFile> logFile;
+    std::unique_ptr<QTextStream> logFileWriter;
+
+    const char *msgTypeToText(QtMsgType type) {
+        switch (type) {
+        case QtDebugMsg:
+            return "debug";
+        case QtInfoMsg:
+            return "info";
+        case QtWarningMsg:
+            return "warning";
+        case QtCriticalMsg:
+            return "critical";
+        case QtFatalMsg:
+            return "fatal";
+        default:
+            return "unknown";
+        }
+    }
 } // namespace
 
 class KisLoggingManager::Private
@@ -37,6 +61,12 @@ class KisLoggingManager::Private
 
     static void myMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
     {
+        // Log to file
+        if (logFileWriter) {
+            *logFileWriter << QDateTime::currentDateTime().toString(Qt::ISODate) << ' ' << context.category << '.' << msgTypeToText(type) << '\t' << msg << '\n';
+            logFileWriter->flush();
+        }
+
         Q_FOREACH (const ScopedLogCapturer *const &capturer, capturerSet) {
             if (capturer->m_category == context.category) {
                 capturer->m_callback(type, context, msg);
@@ -76,6 +106,17 @@ void KisLoggingManager::initialize()
     oldCategoryFilter = QLoggingCategory::installFilter(nullptr);
     // Install our CategoryFilter for filtering
     KisLoggingManager::Private::refreshCategoryFilter();
+}
+
+void KisLoggingManager::initializeLogFile(QString path)
+{
+    logFileWriter.reset();
+    logFile.reset(new QFile(path));
+    if (!logFile->open(QFile::WriteOnly)) {
+        logFile.reset();
+        return;
+    }
+    logFileWriter.reset(new QTextStream(logFile.get()));
 }
 
 ScopedLogCapturer::ScopedLogCapturer(QByteArray category, ScopedLogCapturer::callback_t callback)

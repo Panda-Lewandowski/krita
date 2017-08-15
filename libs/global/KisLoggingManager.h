@@ -23,6 +23,7 @@
 
 #include <QtGlobal>
 #include <QByteArray>
+#include <QString>
 
 #include <functional>
 #include <type_traits>
@@ -45,6 +46,8 @@ public:
      * This function should be called as early as possible in main().
      */
     static void initialize();
+
+    static void initializeLogFile(QString path);
 
     class ScopedLogCapturer;
 
