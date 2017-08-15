@@ -29,6 +29,7 @@
 #include <QDir>
 #include <QDate>
 #include <QLocale>
+#include <QMessageBox>
 #include <QSettings>
 
 #include <time.h>
@@ -142,6 +143,36 @@ extern "C" int main(int argc, char **argv)
 
     // Probe QPA auto OpenGL detection
     KisOpenGL::probeWindowsQpaOpenGL(argc, argv);
+
+    // Force ANGLE / OpenGL
+    {
+        qunsetenv("QT_OPENGL");
+        QApplication app(argc, argv); // for QMessageBox
+        QMessageBox mbox;
+        mbox.setTextFormat(Qt::RichText);
+        mbox.setText("<h2>This build is for testing OpenGL / ANGLE renderers.</h2>");
+        // TODO: Fix URL after news article page is created
+        mbox.setInformativeText(
+            "<p>This build of Krita is for testing purpose only. It may contain bugs that could cause data loss. It should not be used for serious painting.</p>"
+            "<p>Please refer to <a href='https://krita.org/some_page'>https://krita.org/some_page</a> for more information on how to test and give us feedback.</p>"
+            "<p>Select the renderer to test:</p>"
+        );
+        mbox.setIcon(QMessageBox::Information);
+        auto btnDesktopGL = mbox.addButton("Test &Desktop OpenGL", QMessageBox::AcceptRole);
+        auto btnAngle = mbox.addButton("Test &ANGLE", QMessageBox::AcceptRole);
+        mbox.addButton(QMessageBox::Close);
+        mbox.setDefaultButton(QMessageBox::Close);
+        mbox.exec();
+        if (mbox.clickedButton() == btnDesktopGL) {
+            //qputenv("QT_OPENGL", "desktop");
+            QCoreApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
+        } else if (mbox.clickedButton() == btnAngle) {
+            // qputenv("QT_OPENGL", "angle");
+            QCoreApplication::setAttribute(Qt::AA_UseOpenGLES);
+        } else {
+            return 0;
+        }
+    }
 #endif
 
     KLocalizedString::setApplicationDomain("krita");
