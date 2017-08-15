@@ -223,24 +223,24 @@ KisView *KisPart::createView(KisDocument *document,
                              QWidget *parent)
 {
     // If creating the canvas fails, record this and disable OpenGL next time
-    KisConfig cfg;
-    KConfigGroup grp( KSharedConfig::openConfig(), "crashprevention");
-    if (grp.readEntry("CreatingCanvas", false)) {
-        cfg.setUseOpenGL(false);
-    }
-    if (cfg.canvasState() == "OPENGL_FAILED") {
-        cfg.setUseOpenGL(false);
-    }
-    grp.writeEntry("CreatingCanvas", true);
-    grp.sync();
+    // KisConfig cfg;
+    // KConfigGroup grp( KSharedConfig::openConfig(), "crashprevention");
+    // if (grp.readEntry("CreatingCanvas", false)) {
+    //     cfg.setUseOpenGL(false);
+    // }
+    // if (cfg.canvasState() == "OPENGL_FAILED") {
+    //     cfg.setUseOpenGL(false);
+    // }
+    // grp.writeEntry("CreatingCanvas", true);
+    // grp.sync();
 
     QApplication::setOverrideCursor(Qt::WaitCursor);
     KisView *view  = new KisView(document, resourceManager, actionCollection, parent);
     QApplication::restoreOverrideCursor();
 
     // Record successful canvas creation
-    grp.writeEntry("CreatingCanvas", false);
-    grp.sync();
+    // grp.writeEntry("CreatingCanvas", false);
+    // grp.sync();
 
     addView(view);
 

@@ -130,8 +130,8 @@ KisOpenGLCanvas2::KisOpenGLCanvas2(KisCanvas2 *canvas,
     , KisCanvasWidgetBase(canvas, coordinatesConverter)
     , d(new Private())
 {
-    KisConfig cfg;
-    cfg.setCanvasState("OPENGL_STARTED");
+    // KisConfig cfg;
+    // cfg.setCanvasState("OPENGL_STARTED");
 
     d->openGLImageTextures =
             KisOpenGLImageTextures::getImageTextures(image,
@@ -156,7 +156,7 @@ KisOpenGLCanvas2::KisOpenGLCanvas2(KisCanvas2 *canvas,
 
     connect(KisConfigNotifier::instance(), SIGNAL(configChanged()), SLOT(slotConfigChanged()));
     slotConfigChanged();
-    cfg.writeEntry("canvasState", "OPENGL_SUCCESS");
+    // cfg.writeEntry("canvasState", "OPENGL_SUCCESS");
 }
 
 KisOpenGLCanvas2::~KisOpenGLCanvas2()
@@ -309,15 +309,15 @@ void KisOpenGLCanvas2::initializeShaders()
  */
 void KisOpenGLCanvas2::reportFailedShaderCompilation(const QString &context)
 {
-    KisConfig cfg;
+    // KisConfig cfg;
 
     qDebug() << "Shader Compilation Failure: " << context;
     QMessageBox::critical(this, i18nc("@title:window", "Krita"),
                           QString(i18n("Krita could not initialize the OpenGL canvas:\n\n%1\n\n Krita will disable OpenGL and close now.")).arg(context),
                           QMessageBox::Close);
 
-    cfg.setUseOpenGL(false);
-    cfg.setCanvasState("OPENGL_FAILED");
+    // cfg.setUseOpenGL(false);
+    // cfg.setCanvasState("OPENGL_FAILED");
 }
 
 void KisOpenGLCanvas2::resizeGL(int width, int height)
@@ -329,8 +329,8 @@ void KisOpenGLCanvas2::resizeGL(int width, int height)
 void KisOpenGLCanvas2::paintGL()
 {
     if (!OPENGL_SUCCESS) {
-        KisConfig cfg;
-        cfg.writeEntry("canvasState", "OPENGL_PAINT_STARTED");
+        // KisConfig cfg;
+        // cfg.writeEntry("canvasState", "OPENGL_PAINT_STARTED");
     }
 
     KisOpenglCanvasDebugger::instance()->nofityPaintRequested();
@@ -347,8 +347,8 @@ void KisOpenGLCanvas2::paintGL()
     gc.end();
 
     if (!OPENGL_SUCCESS) {
-        KisConfig cfg;
-        cfg.writeEntry("canvasState", "OPENGL_SUCCESS");
+        // KisConfig cfg;
+        // cfg.writeEntry("canvasState", "OPENGL_SUCCESS");
         OPENGL_SUCCESS = true;
     }
 }

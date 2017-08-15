@@ -693,6 +693,7 @@ void PerformanceTab::load(bool requestDefault)
     {
         KisConfig cfg2;
         chkOpenGLFramerateLogging->setChecked(cfg2.enableOpenGLFramerateLogging(requestDefault));
+        chkOpenGLFramerateLogging->setEnabled(false);
         chkDisableVectorOptimizations->setChecked(cfg2.enableAmdVectorizationWorkaround(requestDefault));
     }
 }
@@ -746,8 +747,9 @@ DisplaySettingsTab::DisplaySettingsTab(QWidget *parent, const char *name)
         chkDisableVsync->setEnabled(false);
         cmbFilterMode->setEnabled(false);
     } else {
-        grpOpenGL->setEnabled(true);
+        grpOpenGL->setEnabled(false);
         grpOpenGL->setChecked(cfg.useOpenGL());
+        grpOpenGL->setTitle("OpenGL / ANGLE renderer");
         chkUseTextureBuffer->setEnabled(cfg.useOpenGL());
         chkUseTextureBuffer->setChecked(cfg.useOpenGLTextureBuffer());
         chkDisableVsync->setVisible(cfg.showAdvancedOpenGLSettings());
@@ -811,7 +813,7 @@ void DisplaySettingsTab::setDefault()
         cmbFilterMode->setEnabled(false);
     }
     else {
-        grpOpenGL->setEnabled(true);
+        grpOpenGL->setEnabled(false);
         grpOpenGL->setChecked(cfg.useOpenGL(true));
         chkUseTextureBuffer->setChecked(cfg.useOpenGLTextureBuffer(true));
         chkUseTextureBuffer->setEnabled(true);
@@ -1101,9 +1103,9 @@ bool KisDlgPreferences::editPreferences()
 
         dialog->m_performanceSettings->save();
 
-        if (!cfg.useOpenGL() && dialog->m_displaySettings->grpOpenGL->isChecked())
-            cfg.setCanvasState("TRY_OPENGL");
-        cfg.setUseOpenGL(dialog->m_displaySettings->grpOpenGL->isChecked());
+        // if (!cfg.useOpenGL() && dialog->m_displaySettings->grpOpenGL->isChecked())
+        //     cfg.setCanvasState("TRY_OPENGL");
+        // cfg.setUseOpenGL(dialog->m_displaySettings->grpOpenGL->isChecked());
         cfg.setUseOpenGLTextureBuffer(dialog->m_displaySettings->chkUseTextureBuffer->isChecked());
         cfg.setOpenGLFilteringMode(dialog->m_displaySettings->cmbFilterMode->currentIndex());
         cfg.setDisableVSync(dialog->m_displaySettings->chkDisableVsync->isChecked());

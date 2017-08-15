@@ -158,7 +158,7 @@ public:
     void setRenderIntent(qint32 monitorRenderIntent) const;
 
     bool useOpenGL(bool defaultValue = false) const;
-    void setUseOpenGL(bool useOpenGL) const;
+    // void setUseOpenGL(bool useOpenGL) const;
 
     int openGLFilteringMode(bool defaultValue = false) const;
     void setOpenGLFilteringMode(int filteringMode);
@@ -267,8 +267,8 @@ public:
     void setShowFilterGalleryLayerMaskDialog(bool showFilterGallery) const;
 
     // OPENGL_SUCCESS, TRY_OPENGL, OPENGL_NOT_TRIED, OPENGL_FAILED
-    QString canvasState(bool defaultValue = false) const;
-    void setCanvasState(const QString& state) const;
+    // QString canvasState(bool defaultValue = false) const;
+    // void setCanvasState(const QString& state) const;
 
     bool toolOptionsPopupDetached(bool defaultValue = false) const;
     void setToolOptionsPopupDetached(bool detached) const;

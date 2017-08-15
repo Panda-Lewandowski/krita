@@ -608,68 +608,76 @@ void KisConfig::setRenderIntent(qint32 renderIntent) const
 
 bool KisConfig::useOpenGL(bool defaultValue) const
 {
-    if (defaultValue) {
-        return true;
-    }
-
-    //dbgKrita << "use opengl" << m_cfg.readEntry("useOpenGL", true) << "success" << m_cfg.readEntry("canvasState", "OPENGL_SUCCESS");
-    QString cs = canvasState();
-    return (m_cfg.readEntry("useOpenGL", true) && (cs == "OPENGL_SUCCESS" || cs == "TRY_OPENGL"));
+    // if (defaultValue) {
+    //     return true;
+    // }
+    // 
+    // //dbgKrita << "use opengl" << m_cfg.readEntry("useOpenGL", true) << "success" << m_cfg.readEntry("canvasState", "OPENGL_SUCCESS");
+    // QString cs = canvasState();
+    // return (m_cfg.readEntry("useOpenGL", true) && (cs == "OPENGL_SUCCESS" || cs == "TRY_OPENGL"));
+    return true;
 }
 
-void KisConfig::setUseOpenGL(bool useOpenGL) const
-{
-    m_cfg.writeEntry("useOpenGL", useOpenGL);
-}
+// void KisConfig::setUseOpenGL(bool useOpenGL) const
+// {
+//     m_cfg.writeEntry("useOpenGL", useOpenGL);
+// }
 
 int KisConfig::openGLFilteringMode(bool defaultValue) const
 {
-    return (defaultValue ? 3 : m_cfg.readEntry("OpenGLFilterMode", 3));
+    // return (defaultValue ? 3 : m_cfg.readEntry("OpenGLFilterMode", 3));
+    return 3;
 }
 
 void KisConfig::setOpenGLFilteringMode(int filteringMode)
 {
-    m_cfg.writeEntry("OpenGLFilterMode", filteringMode);
+    // m_cfg.writeEntry("OpenGLFilterMode", filteringMode);
 }
 
 bool KisConfig::useOpenGLTextureBuffer(bool defaultValue) const
 {
-    return (defaultValue ? true : m_cfg.readEntry("useOpenGLTextureBuffer", true));
+    // return (defaultValue ? true : m_cfg.readEntry("useOpenGLTextureBuffer", true));
+    return true;
 }
 
 void KisConfig::setUseOpenGLTextureBuffer(bool useBuffer)
 {
-    m_cfg.writeEntry("useOpenGLTextureBuffer", useBuffer);
+    // m_cfg.writeEntry("useOpenGLTextureBuffer", useBuffer);
 }
 
 int KisConfig::openGLTextureSize(bool defaultValue) const
 {
-    return (defaultValue ? 256 : m_cfg.readEntry("textureSize", 256));
+    // return (defaultValue ? 256 : m_cfg.readEntry("textureSize", 256));
+    return 256;
 }
 
 bool KisConfig::disableVSync(bool defaultValue) const
 {
-    return (defaultValue ? true : m_cfg.readEntry("disableVSync", true));
+    // return (defaultValue ? true : m_cfg.readEntry("disableVSync", true));
+    return true;
 }
 
 void KisConfig::setDisableVSync(bool disableVSync)
 {
-    m_cfg.writeEntry("disableVSync", disableVSync);
+    // m_cfg.writeEntry("disableVSync", disableVSync);
 }
 
 bool KisConfig::showAdvancedOpenGLSettings(bool defaultValue) const
 {
-    return (defaultValue ? false : m_cfg.readEntry("showAdvancedOpenGLSettings", false));
+    // return (defaultValue ? false : m_cfg.readEntry("showAdvancedOpenGLSettings", false));
+    return false;
 }
 
 bool KisConfig::forceOpenGLFenceWorkaround(bool defaultValue) const
 {
-    return (defaultValue ? false : m_cfg.readEntry("forceOpenGLFenceWorkaround", false));
+    // return (defaultValue ? false : m_cfg.readEntry("forceOpenGLFenceWorkaround", false));
+    return false;
 }
 
 int KisConfig::numMipmapLevels(bool defaultValue) const
 {
-    return (defaultValue ? 4 : m_cfg.readEntry("numMipmapLevels", 4));
+    // return (defaultValue ? 4 : m_cfg.readEntry("numMipmapLevels", 4));
+    return 4;
 }
 
 int KisConfig::textureOverlapBorder() const
@@ -1014,25 +1022,25 @@ void KisConfig::setShowFilterGalleryLayerMaskDialog(bool showFilterGallery) cons
     m_cfg.writeEntry("setShowFilterGalleryLayerMaskDialog", showFilterGallery);
 }
 
-QString KisConfig::canvasState(bool defaultValue) const
-{
-    const QString configPath = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
-    QSettings kritarc(configPath + QStringLiteral("/kritadisplayrc"), QSettings::IniFormat);
-    return (defaultValue ? "OPENGL_NOT_TRIED" : kritarc.value("canvasState", "OPENGL_NOT_TRIED").toString());
-}
+// QString KisConfig::canvasState(bool defaultValue) const
+// {
+//     const QString configPath = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+//     QSettings kritarc(configPath + QStringLiteral("/kritadisplayrc"), QSettings::IniFormat);
+//     return (defaultValue ? "OPENGL_NOT_TRIED" : kritarc.value("canvasState", "OPENGL_NOT_TRIED").toString());
+// }
 
-void KisConfig::setCanvasState(const QString& state) const
-{
-    static QStringList acceptableStates;
-    if (acceptableStates.isEmpty()) {
-        acceptableStates << "OPENGL_SUCCESS" << "TRY_OPENGL" << "OPENGL_NOT_TRIED" << "OPENGL_FAILED";
-    }
-    if (acceptableStates.contains(state)) {
-        const QString configPath = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
-        QSettings kritarc(configPath + QStringLiteral("/kritadisplayrc"), QSettings::IniFormat);
-        kritarc.setValue("canvasState", state);
-    }
-}
+// void KisConfig::setCanvasState(const QString& state) const
+// {
+//     static QStringList acceptableStates;
+//     if (acceptableStates.isEmpty()) {
+//         acceptableStates << "OPENGL_SUCCESS" << "TRY_OPENGL" << "OPENGL_NOT_TRIED" << "OPENGL_FAILED";
+//     }
+//     if (acceptableStates.contains(state)) {
+//         const QString configPath = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+//         QSettings kritarc(configPath + QStringLiteral("/kritadisplayrc"), QSettings::IniFormat);
+//         kritarc.setValue("canvasState", state);
+//     }
+// }
 
 bool KisConfig::toolOptionsPopupDetached(bool defaultValue) const
 {
@@ -1696,12 +1704,13 @@ void KisConfig::setCustomColorSelectorColorSpace(const KoColorSpace *cs)
 
 bool KisConfig::enableOpenGLFramerateLogging(bool defaultValue) const
 {
-    return (defaultValue ? false : m_cfg.readEntry("enableOpenGLFramerateLogging", false));
+    // return (defaultValue ? false : m_cfg.readEntry("enableOpenGLFramerateLogging", false));
+    return false;
 }
 
 void KisConfig::setEnableOpenGLFramerateLogging(bool value) const
 {
-    m_cfg.writeEntry("enableOpenGLFramerateLogging", value);
+    // m_cfg.writeEntry("enableOpenGLFramerateLogging", value);
 }
 
 void KisConfig::setEnableAmdVectorizationWorkaround(bool value)

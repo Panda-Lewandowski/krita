@@ -310,10 +310,10 @@ extern "C" int main(int argc, char **argv)
 
     int state = app.exec();
 
-    {
-        QSettings kritarc(configPath + QStringLiteral("/kritadisplayrc"), QSettings::IniFormat);
-        kritarc.setValue("canvasState", "OPENGL_SUCCESS");
-    }
+    // {
+    //     QSettings kritarc(configPath + QStringLiteral("/kritadisplayrc"), QSettings::IniFormat);
+    //     kritarc.setValue("canvasState", "OPENGL_SUCCESS");
+    // }
 
     return state;
 }

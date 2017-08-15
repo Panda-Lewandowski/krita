@@ -155,21 +155,21 @@ void KisOpenGL::initialize()
 #  define GL_RENDERER 0x1F01
 #endif
     Renderer = QString((const char*)funcs->glGetString(GL_RENDERER));
-    /**
-     * Warn about Intel's broken video drivers
-     */
-#if defined Q_OS_WIN
-    KisConfig cfg;
-    if (cfg.useOpenGL() && Renderer.startsWith("Intel") && !cfg.readEntry("WarnedAboutIntel", false)) {
-        QMessageBox::information(0,
-                                 i18nc("@title:window", "Krita: Warning"),
-                                 i18n("You have an Intel(R) HD Graphics video adapter.\n"
-                                      "If you experience problems like a crash, a black or blank screen,"
-                                      "please update your display driver to the latest version.\n\n"
-                                      "If Krita crashes, it will disable OpenGL rendering. Please restart Krita in that case.\n After updating your drivers you can re-enable OpenGL in Krita's Settings.\n"));
-        cfg.writeEntry("WarnedAboutIntel", true);
-    }
-#endif
+//     /**
+//      * Warn about Intel's broken video drivers
+//      */
+// #if defined Q_OS_WIN
+//     KisConfig cfg;
+//     if (cfg.useOpenGL() && Renderer.startsWith("Intel") && !cfg.readEntry("WarnedAboutIntel", false)) {
+//         QMessageBox::information(0,
+//                                  i18nc("@title:window", "Krita: Warning"),
+//                                  i18n("You have an Intel(R) HD Graphics video adapter.\n"
+//                                       "If you experience problems like a crash, a black or blank screen,"
+//                                       "please update your display driver to the latest version.\n\n"
+//                                       "If Krita crashes, it will disable OpenGL rendering. Please restart Krita in that case.\n After updating your drivers you can re-enable OpenGL in Krita's Settings.\n"));
+//         cfg.writeEntry("WarnedAboutIntel", true);
+//     }
+// #endif
 
     glMajorVersion = context.format().majorVersion();
     glMinorVersion = context.format().minorVersion();
@@ -233,16 +233,16 @@ void KisOpenGL::initializeContext(QOpenGLContext *ctx)
     QOpenGLFunctions *f = ctx->functions();
     f->initializeOpenGLFunctions();
 
-    QFile log(QDesktopServices::storageLocation(QDesktopServices::TempLocation) + "/krita-opengl.txt");
-    log.open(QFile::WriteOnly);
+    // QFile log(QDesktopServices::storageLocation(QDesktopServices::TempLocation) + "/krita-opengl.txt");
+    // log.open(QFile::WriteOnly);
     QString vendor((const char*)f->glGetString(GL_VENDOR));
-    log.write(vendor.toLatin1());
-    log.write(", ");
-    log.write(Renderer.toLatin1());
-    log.write(", ");
-    QString version((const char*)f->glGetString(GL_VERSION));
-    log.write(version.toLatin1());
-    log.close();
+    // log.write(vendor.toLatin1());
+    // log.write(", ");
+    // log.write(Renderer.toLatin1());
+    // log.write(", ");
+    // QString version((const char*)f->glGetString(GL_VERSION));
+    // log.write(version.toLatin1());
+    // log.close();
 
     // Check if we have a bugged driver that needs fence workaround
     bool isOnX11 = false;

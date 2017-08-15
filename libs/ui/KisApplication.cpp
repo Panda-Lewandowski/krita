@@ -359,13 +359,13 @@ bool KisApplication::start(const KisApplicationArguments &args)
 #endif
 #endif
 
-    QString opengl = cfg.canvasState();
-    if (opengl == "OPENGL_NOT_TRIED" ) {
-        cfg.setCanvasState("TRY_OPENGL");
-    }
-    else if (opengl != "OPENGL_SUCCESS") {
-        cfg.setCanvasState("OPENGL_FAILED");
-    }
+    // QString opengl = cfg.canvasState();
+    // if (opengl == "OPENGL_NOT_TRIED" ) {
+    //     cfg.setCanvasState("TRY_OPENGL");
+    // }
+    // else if (opengl != "OPENGL_SUCCESS") {
+    //     cfg.setCanvasState("OPENGL_FAILED");
+    // }
 
     setSplashScreenLoadingText(i18n("Initializing Globals"));
     processEvents();
