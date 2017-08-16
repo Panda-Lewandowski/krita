@@ -117,7 +117,7 @@ void KisLoggingManager::initializeLogFile(QString path)
 {
     logFileWriter.reset();
     logFile.reset(new QFile(path));
-    if (!logFile->open(QFile::WriteOnly | QFile::Append)) {
+    if (!logFile->open(QFile::WriteOnly | QFile::Append | QFile::Text)) {
         logFile.reset();
         return;
     }
