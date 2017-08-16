@@ -23,6 +23,7 @@
 #include <QLoggingCategory>
 #include <QSet>
 #include <QTextStream>
+#include <QThread>
 
 #include <memory>
 
@@ -63,7 +64,7 @@ class KisLoggingManager::Private
     {
         // Log to file
         if (logFileWriter) {
-            *logFileWriter << QDateTime::currentDateTime().toString(Qt::ISODate) << ' ' << context.category << '.' << msgTypeToText(type) << '\t' << msg << '\n';
+            *logFileWriter << QDateTime::currentDateTime().toString(Qt::ISODate) << ' ' << QThread::currentThreadId() << ' ' << context.category << '.' << msgTypeToText(type) << '\t' << msg << '\n';
             logFileWriter->flush();
         }
 
@@ -112,7 +113,7 @@ void KisLoggingManager::initializeLogFile(QString path)
 {
     logFileWriter.reset();
     logFile.reset(new QFile(path));
-    if (!logFile->open(QFile::WriteOnly)) {
+    if (!logFile->open(QFile::WriteOnly | QFile::Append)) {
         logFile.reset();
         return;
     }

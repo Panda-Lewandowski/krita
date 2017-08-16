@@ -82,7 +82,7 @@ void tryInitDrMingw()
         return;
     }
     // Set the log file path to %LocalAppData%\kritacrash.log
-    QString logFile = QCoreApplication::applicationDirPath().replace(L'/', L'\\') + QStringLiteral("\\..\\krita-crash.log");
+    QString logFile = QCoreApplication::applicationDirPath().replace(L'/', L'\\') + QStringLiteral("\\..\\krita-crash-%1.log").arg(QCoreApplication::applicationPid());
     myExcHndlSetLogFileNameA(logFile.toLocal8Bit());
 }
 } // namespace
@@ -139,7 +139,7 @@ extern "C" int main(int argc, char **argv)
 #ifdef Q_OS_WIN
     {
         QCoreApplication app(argc, argv);
-        KisLoggingManager::initializeLogFile(QCoreApplication::applicationDirPath() + "/../krita-debug.log");
+        KisLoggingManager::initializeLogFile(QCoreApplication::applicationDirPath() + QStringLiteral("/../krita-debug-%1.log").arg(QCoreApplication::applicationPid()));
     }
 
     // Force ANGLE to use Direct3D11. D3D9 doesn't support OpenGL ES 3 and WARP
