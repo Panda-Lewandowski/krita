@@ -120,6 +120,12 @@ void KisLoggingManager::initializeLogFile(QString path)
     logFileWriter.reset(new QTextStream(logFile.get()));
 }
 
+void KisLoggingManager::uninitialize()
+{
+    logFileWriter.reset();
+    logFile.reset();
+}
+
 ScopedLogCapturer::ScopedLogCapturer(QByteArray category, ScopedLogCapturer::callback_t callback)
     : m_category(category)
     , m_callback(callback)

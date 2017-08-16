@@ -49,6 +49,8 @@ public:
 
     static void initializeLogFile(QString path);
 
+    static void uninitialize();
+
     class ScopedLogCapturer;
 
 private:

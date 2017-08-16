@@ -175,6 +175,7 @@ extern "C" int main(int argc, char **argv)
             // qputenv("QT_OPENGL", "angle");
             QCoreApplication::setAttribute(Qt::AA_UseOpenGLES);
         } else {
+            KisLoggingManager::uninitialize();
             return 0;
         }
     }
@@ -261,6 +262,7 @@ extern "C" int main(int argc, char **argv)
         if (!batchRun) {
             QByteArray ba = args.serialize();
             if (app.sendMessage(ba)) {
+                KisLoggingManager::uninitialize();
                 return 0;
             }
         }
@@ -299,6 +301,7 @@ extern "C" int main(int argc, char **argv)
 #endif
 
     if (!app.start(args)) {
+        KisLoggingManager::uninitialize();
         return 1;
     }
 
@@ -320,6 +323,7 @@ extern "C" int main(int argc, char **argv)
     //     kritarc.setValue("canvasState", "OPENGL_SUCCESS");
     // }
 
+    KisLoggingManager::uninitialize();
     return state;
 }
 
