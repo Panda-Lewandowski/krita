@@ -21,6 +21,8 @@
 #include <QDateTime>
 #include <QFile>
 #include <QLoggingCategory>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QSet>
 #include <QTextStream>
 #include <QThread>
@@ -37,6 +39,7 @@ namespace
     QSet<const ScopedLogCapturer *> capturerSet;
     std::unique_ptr<QFile> logFile;
     std::unique_ptr<QTextStream> logFileWriter;
+    QMutex logFileMutex;
 
     const char *msgTypeToText(QtMsgType type) {
         switch (type) {
@@ -64,6 +67,7 @@ class KisLoggingManager::Private
     {
         // Log to file
         if (logFileWriter) {
+            QMutexLocker locker(&logFileMutex);
             *logFileWriter << QDateTime::currentDateTime().toString(Qt::ISODate) << ' ' << QThread::currentThreadId() << ' ' << context.category << '.' << msgTypeToText(type) << '\t' << msg << '\n';
             logFileWriter->flush();
         }
