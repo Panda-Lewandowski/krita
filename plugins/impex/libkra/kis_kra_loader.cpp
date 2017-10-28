@@ -367,7 +367,8 @@ void KisKraLoader::loadBinaryData(KoStore * store, KisImageSP image, const QStri
                     res = image->assignImageProfile(profile);
                 }
                 if (!res) {
-                    profile = KoColorSpaceRegistry::instance()->profileByName(KoColorSpaceRegistry::instance()->colorSpaceFactory(image->colorSpace()->id())->defaultProfile());
+                    const QString defaultProfileId = KoColorSpaceRegistry::instance()->defaultProfileForColorSpace(image->colorSpace()->id());
+                    profile = KoColorSpaceRegistry::instance()->profileByName(defaultProfileId);
                     Q_ASSERT(profile && profile->valid());
                     image->assignImageProfile(profile);
                 }
@@ -558,7 +559,7 @@ KisNodeSP KisKraLoader::loadNodes(const KoXmlElement& element, KisImageSP image,
                     if (node) {
                         image->nextLayerName(); // Make sure the nameserver is current with the number of nodes.
                         image->addNode(node, parent);
-                        if (node->inherits("KisLayer") && child.childNodesCount() > 0) {
+                        if (node->inherits("KisLayer") && KoXml::childNodesCount(child) > 0) {
                             loadNodes(child.toElement(), image, node);
                         }
                     }
@@ -721,6 +722,9 @@ KisNodeSP KisKraLoader::loadNode(const KoXmlElement& element, KisImageSP image, 
         }
     }
 
+    const bool timelineEnabled = element.attribute(VISIBLE_IN_TIMELINE, "0") == "0" ? false : true;
+    node->setUseInTimeline(timelineEnabled);
+
     if (node->inherits("KisPaintLayer")) {
         KisPaintLayer* layer            = qobject_cast<KisPaintLayer*>(node.data());
         QBitArray      channelLockFlags = stringToFlags(element.attribute(CHANNEL_LOCK_FLAGS, ""), colorSpace->channelCount());
@@ -728,9 +732,6 @@ KisNodeSP KisKraLoader::loadNode(const KoXmlElement& element, KisImageSP image, 
 
         bool onionEnabled = element.attribute(ONION_SKIN_ENABLED, "0") == "0" ? false : true;
         layer->setOnionSkinEnabled(onionEnabled);
-
-        bool timelineEnabled = element.attribute(VISIBLE_IN_TIMELINE, "0") == "0" ? false : true;
-        layer->setUseInTimeline(timelineEnabled);
     }
 
     if (element.attribute(FILE_NAME).isNull()) {
@@ -786,7 +787,7 @@ KisNodeSP KisKraLoader::loadFileLayer(const KoXmlElement& element, KisImageSP im
     QFileInfo info(documentPath);
     QString basePath = info.absolutePath();
 
-    QString fullPath = basePath + QDir::separator() + filename;
+    QString fullPath = QDir(basePath).filePath(QDir::cleanPath(filename));
     // Entering the event loop to show the messagebox will delete the image, so up the ref by one
     image->ref();
     if (!QFileInfo(fullPath).exists()) {

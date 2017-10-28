@@ -32,15 +32,15 @@ class KRITAUI_EXPORT KisCanvasController : public KoCanvasControllerWidget
 
 public:
     KisCanvasController(QPointer<KisView>parent, KActionCollection * actionCollection);
-    ~KisCanvasController();
+    ~KisCanvasController() override;
 
-    virtual void setCanvas(KoCanvasBase *canvas);
-    virtual void changeCanvasWidget(QWidget *widget);
-    virtual void keyPressEvent(QKeyEvent *event);
-    virtual void wheelEvent(QWheelEvent *event);
-    virtual bool eventFilter(QObject *watched, QEvent *event);
-    virtual void updateDocumentSize(const QSize &sz, bool recalculateCenter);
-    virtual void activate();
+    void setCanvas(KoCanvasBase *canvas) override;
+    void changeCanvasWidget(QWidget *widget) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
+    void updateDocumentSize(const QSize &sz, bool recalculateCenter) override;
+    void activate() override;
 
     QPointF currentCursorPosition() const override;
 
@@ -51,6 +51,7 @@ public:
 
 public Q_SLOTS:
     void mirrorCanvas(bool enable);
+    void rotateCanvas(qreal angle, const QPointF &center);
     void rotateCanvas(qreal angle);
     void rotateCanvasRight15();
     void rotateCanvasLeft15();

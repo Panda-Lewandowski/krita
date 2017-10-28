@@ -81,7 +81,7 @@ public:
      */
     KisMask(const KisMask& rhs);
 
-    virtual ~KisMask();
+    ~KisMask() override;
 
     void setImage(KisImageWSP image) override;
 
@@ -203,6 +203,8 @@ protected:
                                PositionToFilthy maskPos) const;
 
     KisKeyframeChannel *requestKeyframeChannel(const QString &id) override;
+
+    void baseNodeChangedCallback() override;
 
 private:
     friend class KisMaskProjectionPlane;

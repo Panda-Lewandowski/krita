@@ -326,7 +326,7 @@ quint32 KoColorSet::getIndexClosestColor(const KoColor color, bool useGivenColor
 QString KoColorSet::closestColorName(const KoColor color, bool useGivenColorSpace)
 {
     int i = getIndexClosestColor(color, useGivenColorSpace);
-    QString name = d->colors.at(i).name;
+    QString name = getColorGlobal(i).name;
     return name;
 }
 
@@ -383,10 +383,18 @@ KoColorSetEntry KoColorSet::getColorGlobal(quint32 index)
 KoColorSetEntry KoColorSet::getColorGroup(quint32 index, QString groupName)
 {
     KoColorSetEntry e;
-    if (d->groups.contains(groupName) && index<(quint32)d->groups.value(groupName).size()) {
-        e = d->groups.value(groupName).at(index);
-    } else if (groupName == QString() && index<(quint32)d->colors.size()) {
-        e = d->colors.at(index);
+    if (d->groups.contains(groupName)) {
+        if (nColorsGroup(groupName)>index) {
+            e = d->groups.value(groupName).at(index);
+        } else {
+            warnPigment<<index<<"is above"<<nColorsGroup(groupName)<<"of"<<groupName;
+        }
+    } else if (groupName.isEmpty() || groupName == QString()) {
+        if (nColorsGroup(groupName)>index) {
+            e = d->colors.at(index);
+        } else {
+            warnPigment<<index<<"is above the size of the default group:"<<nColorsGroup(groupName);
+        }
     } else {
         warnPigment << "Color group "<<groupName<<" not found";
     }
@@ -470,6 +478,34 @@ QStringList KoColorSet::getGroupNames()
     return d->groupNames;
 }
 
+bool KoColorSet::changeGroupName(QString oldGroupName, QString newGroupName)
+{
+    if (d->groupNames.contains(oldGroupName)==false) {
+        return false;
+    }
+    QVector<KoColorSetEntry> dummyList = d->groups.value(oldGroupName);
+    d->groups.remove(oldGroupName);
+    d->groups[newGroupName] = dummyList;
+    //rename the string in the stringlist;
+    int index = d->groupNames.indexOf(oldGroupName);
+    d->groupNames.replace(index, newGroupName);
+    return true;
+}
+
+bool KoColorSet::changeColorSetEntry(KoColorSetEntry entry, QString groupName, quint32 index)
+{
+    if (index>=nColorsGroup(groupName) || (d->groupNames.contains(groupName)==false &&  groupName.size()>0)) {
+        return false;
+    }
+
+    if (groupName==QString()) {
+        d->colors[index] = entry;
+    } else {
+        d->groups[groupName][index] = entry;
+    }
+    return true;
+}
+
 void KoColorSet::setColumnCount(int columns)
 {
     d->columns = columns;
@@ -485,6 +521,11 @@ QString KoColorSet::comment()
     return d->comment;
 }
 
+void KoColorSet::setComment(QString comment)
+{
+    d->comment = comment;
+}
+
 bool KoColorSet::addGroup(const QString &groupName)
 {
     if (d->groups.contains(groupName) || d->groupNames.contains(groupName)) {
@@ -492,6 +533,20 @@ bool KoColorSet::addGroup(const QString &groupName)
     }
     d->groupNames.append(groupName);
     d->groups[groupName];
+    return true;
+}
+
+bool KoColorSet::moveGroup(const QString &groupName, const QString &groupNameInsertBefore)
+{
+    if (d->groupNames.contains(groupName)==false || d->groupNames.contains(groupNameInsertBefore)==false) {
+        return false;
+    }
+    d->groupNames.removeAt(d->groupNames.indexOf(groupName));
+    int index = d->groupNames.size();
+    if (groupNameInsertBefore!=QString()) {
+        index = d->groupNames.indexOf(groupNameInsertBefore);
+    }
+    d->groupNames.insert(index, groupName);
     return true;
 }
 

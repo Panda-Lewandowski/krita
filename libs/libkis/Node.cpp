@@ -45,6 +45,10 @@
 #include <kis_layer.h>
 #include <kis_meta_data_merge_strategy.h>
 #include <metadata/kis_meta_data_merge_strategy_registry.h>
+#include <kis_filter_strategy.h>
+
+#include <kis_raster_keyframe_channel.h>
+#include <kis_keyframe.h>
 
 #include "Krita.h"
 #include "Node.h"
@@ -270,7 +274,7 @@ void Node::setInheritAlpha(bool value)
 bool Node::locked() const
 {
     if (!d->node) return false;
-    return d->node->userLocked() || d->node->systemLocked();
+    return d->node->userLocked();
 }
 
 void Node::setLocked(bool value)
@@ -317,7 +321,6 @@ Node* Node::parentNode() const
 QString Node::type() const
 {
     if (!d->node) return QString();
-    return QString();
     if (qobject_cast<const KisPaintLayer*>(d->node)) {
         return "paintlayer";
     }
@@ -354,6 +357,7 @@ QString Node::type() const
     if (qobject_cast<const KisColorizeMask*>(d->node)) {
         return "colorizemask";
     }
+    return QString();
 }
 
 bool Node::visible() const
@@ -377,6 +381,27 @@ QByteArray Node::pixelData(int x, int y, int w, int h) const
 
     KisPaintDeviceSP dev = d->node->paintDevice();
     if (!dev) return ba;
+
+    ba.resize(w * h * dev->pixelSize());
+    dev->readBytes(reinterpret_cast<quint8*>(ba.data()), x, y, w, h);
+    return ba;
+}
+
+QByteArray Node::pixelDataAtTime(int x, int y, int w, int h, int time) const
+{
+    QByteArray ba;
+
+    if (!d->node || !d->node->isAnimated()) return ba;
+
+    //
+    KisRasterKeyframeChannel *rkc = dynamic_cast<KisRasterKeyframeChannel*>(d->node->getKeyframeChannel(KisKeyframeChannel::Content.id()));
+    if (!rkc) return ba;
+    KisKeyframeSP frame = rkc->keyframeAt(time);
+    if (!frame) return ba;
+    KisPaintDeviceSP dev = d->node->paintDevice();
+    if (!dev) return ba;
+
+    rkc->fetchFrame(frame, dev);
 
     ba.resize(w * h * dev->pixelSize());
     dev->readBytes(reinterpret_cast<quint8*>(ba.data()), x, y, w, h);
@@ -444,7 +469,7 @@ bool Node::save(const QString &filename, double xRes, double yRes)
     KisPaintDeviceSP projection = d->node->projection();
     QRect bounds = d->node->exactBounds();
 
-    QString mimefilter = KisMimeDatabase::mimeTypeForFile(filename);;
+    QString mimeType = KisMimeDatabase::mimeTypeForFile(filename);
     QScopedPointer<KisDocument> doc(KisPart::instance()->createDocument());
 
     KisImageSP dst = new KisImage(doc->createUndoStore(),
@@ -459,9 +484,8 @@ bool Node::save(const QString &filename, double xRes, double yRes)
     paintLayer->paintDevice()->makeCloneFrom(projection, bounds);
     dst->addNode(paintLayer, dst->rootLayer(), KisLayerSP(0));
     dst->initialRefreshGraph();
-    doc->setOutputMimeType(mimefilter.toLatin1());
 
-    bool r = doc->exportDocument(QUrl::fromLocalFile(filename));
+    bool r = doc->exportDocumentSync(QUrl::fromLocalFile(filename), mimeType.toLatin1());
     if (!r) {
         qWarning() << doc->errorMessage();
     }
@@ -479,6 +503,46 @@ Node *Node::mergeDown()
     d->image->mergeDown(qobject_cast<KisLayer*>(d->node.data()), KisMetaData::MergeStrategyRegistry::instance()->get("Drop"));
     d->image->waitForDone();
     return new Node(d->image, d->node->parent()->at(index));
+}
+
+void Node::scaleNode(int width, int height, QString strategy)
+{
+    if (!d->node) return;
+    if (!qobject_cast<KisLayer*>(d->node.data())) return;
+    if (!d->node->parent()) return;
+
+    KisFilterStrategy *actualStrategy = KisFilterStrategyRegistry::instance()->get(strategy);
+    if (!actualStrategy) actualStrategy = KisFilterStrategyRegistry::instance()->get("Bicubic");
+
+    d->image->scaleNode(d->node, width, height, actualStrategy);
+}
+
+void Node::rotateNode(double radians)
+{
+    if (!d->node) return;
+    if (!qobject_cast<KisLayer*>(d->node.data())) return;
+    if (!d->node->parent()) return;
+
+    d->image->rotateNode(d->node, radians);
+}
+
+void Node::cropNode(int x, int y, int w, int h)
+{
+    if (!d->node) return;
+    if (!qobject_cast<KisLayer*>(d->node.data())) return;
+    if (!d->node->parent()) return;
+
+    QRect rect = QRect(x, y, w, h);
+    d->image->cropNode(d->node, rect);
+}
+
+void Node::shearNode(double angleX, double angleY)
+{
+    if (!d->node) return;
+    if (!qobject_cast<KisLayer*>(d->node.data())) return;
+    if (!d->node->parent()) return;
+
+    d->image->shearNode(d->node, angleX, angleY);
 }
 
 QImage Node::thumbnail(int w, int h)

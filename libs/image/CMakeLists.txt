@@ -78,6 +78,7 @@ set(kritaimage_LIB_SRCS
    brushengine/kis_standard_uniform_properties_factory.cpp
    commands/kis_deselect_global_selection_command.cpp
    commands/kis_image_change_layers_command.cpp
+   commands/kis_image_change_visibility_command.cpp
    commands/kis_image_command.cpp
    commands/kis_image_set_projection_color_space_command.cpp
    commands/kis_image_layer_add_command.cpp
@@ -124,6 +125,7 @@ set(kritaimage_LIB_SRCS
    lazybrush/kis_multiway_cut.cpp
    lazybrush/kis_colorize_mask.cpp
    lazybrush/kis_colorize_stroke_strategy.cpp
+   KisDelayedUpdateNodeInterface.cpp
    kis_adjustment_layer.cc
    kis_selection_based_layer.cpp
    kis_node_filter_interface.cpp
@@ -138,6 +140,7 @@ set(kritaimage_LIB_SRCS
    kis_convolution_kernel.cc
    kis_convolution_painter.cc
    kis_gaussian_kernel.cpp
+   kis_edge_detection_kernel.cpp
    kis_cubic_curve.cpp
    kis_default_bounds.cpp
    kis_default_bounds_base.cpp
@@ -174,6 +177,7 @@ set(kritaimage_LIB_SRCS
    kis_sync_lod_cache_stroke_strategy.cpp
    kis_lod_capable_layer_offset.cpp
    kis_update_time_monitor.cpp
+   KisUpdateSchedulerConfigNotifier.cpp
    kis_group_layer.cc
    kis_count_visitor.cpp
    kis_histogram.cc

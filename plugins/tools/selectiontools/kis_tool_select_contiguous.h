@@ -29,7 +29,6 @@
 #include <kconfig.h>
 #include <kconfiggroup.h>
 
-
 /**
  * The 'magic wand' selection tool -- in fact just
  * a floodfill that only creates a selection.
@@ -41,19 +40,21 @@ class KisToolSelectContiguous : public KisToolSelectBase<KisTool>
 
 public:
     KisToolSelectContiguous(KoCanvasBase *canvas);
-    virtual ~KisToolSelectContiguous();
+    ~KisToolSelectContiguous() override;
 
-    virtual QWidget* createOptionWidget();
-    virtual void paint(QPainter &painter, const KoViewConverter &converter);
+    QWidget* createOptionWidget() override;
+    void paint(QPainter &painter, const KoViewConverter &converter) override;
 
-    void beginPrimaryAction(KoPointerEvent *event);
+    void beginPrimaryAction(KoPointerEvent *event) override;
+
+    QMenu* popupActionsMenu() override;
 
 protected:
 
-    virtual bool wantsAutoScroll() const { return false; }
+    bool wantsAutoScroll() const override { return false; }
 
 public Q_SLOTS:
-    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
+    void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes) override;
     virtual void slotSetFuzziness(int);
     virtual void slotSetSizemod(int);
     virtual void slotSetFeather(int);
@@ -85,9 +86,9 @@ public:
         setActivationShapeId(KRITA_TOOL_ACTIVATION_ID);
     }
 
-    virtual ~KisToolSelectContiguousFactory() {}
+    ~KisToolSelectContiguousFactory() override {}
 
-    virtual KoToolBase * createTool(KoCanvasBase *canvas) {
+    KoToolBase * createTool(KoCanvasBase *canvas) override {
         return new KisToolSelectContiguous(canvas);
     }
 };

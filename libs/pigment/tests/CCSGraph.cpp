@@ -31,6 +31,16 @@
 #include <QCommandLineParser>
 #include <QCommandLineOption>
 
+struct FriendOfColorSpaceRegistry {
+static QString toDot() {
+    return KoColorSpaceRegistry::instance()->colorConversionSystem()->toDot();
+}
+
+static QString bestPathToDot(const QString &srcKey, const QString &dstKey) {
+    return KoColorSpaceRegistry::instance()->colorConversionSystem()->bestPathToDot(srcKey, dstKey);
+}
+};
+
 int main(int argc, char** argv)
 {
 
@@ -68,7 +78,7 @@ int main(int argc, char** argv)
 
     QString dot;
     if (graphType == "full") {
-        dot = KoColorSpaceRegistry::instance()->colorConversionSystem()->toDot();
+        dot = FriendOfColorSpaceRegistry::toDot();
     } else if (graphType == "bestpath") {
         QString srcKey = parser.value("src-key");
         QString dstKey = parser.value("dst-key");
@@ -76,10 +86,10 @@ int main(int argc, char** argv)
             errorPigment << "src-key and dst-key must be specified for the graph bestpath";
             exit(EXIT_FAILURE);
         } else {
-            dot = KoColorSpaceRegistry::instance()->colorConversionSystem()->bestPathToDot(srcKey, dstKey);
+            dot = FriendOfColorSpaceRegistry::bestPathToDot(srcKey, dstKey);
         }
     } else {
-        errorPigment << "Unknow graph type : " << graphType.toLatin1();
+        errorPigment << "Unknown graph type : " << graphType.toLatin1();
         exit(EXIT_FAILURE);
     }
 
@@ -103,7 +113,7 @@ int main(int argc, char** argv)
             errorPigment << "An error has occurred when executing : '" << cmd << "' the most likely cause is that 'dot' command is missing, and that you should install graphviz (from http://www.graphiz.org)";
         }
     } else {
-        errorPigment << "Unknow output type : " << outputType;
+        errorPigment << "Unknown output type : " << outputType;
         exit(EXIT_FAILURE);
     }
 }

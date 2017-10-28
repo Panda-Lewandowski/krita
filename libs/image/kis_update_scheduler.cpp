@@ -28,9 +28,11 @@
 #include "kis_strokes_queue.h"
 
 #include "kis_queues_progress_updater.h"
+#include "KisUpdateSchedulerConfigNotifier.h"
 
 #include <QReadWriteLock>
 #include "kis_lazy_wait_condition.h"
+#include <mutex>
 
 //#define DEBUG_BALANCING
 
@@ -48,6 +50,7 @@
 struct Q_DECL_HIDDEN KisUpdateScheduler::Private {
     Private(KisUpdateScheduler *_q, KisProjectionUpdateListener *p)
         : q(_q)
+        , updaterContext(KisImageConfig().maxNumberOfThreads(), q)
         , projectionUpdateListener(p)
     {}
 
@@ -66,8 +69,9 @@ struct Q_DECL_HIDDEN KisUpdateScheduler::Private {
     KisLazyWaitCondition updatesFinishedCondition;
 };
 
-KisUpdateScheduler::KisUpdateScheduler(KisProjectionUpdateListener *projectionUpdateListener)
-    : m_d(new Private(this, projectionUpdateListener))
+KisUpdateScheduler::KisUpdateScheduler(KisProjectionUpdateListener *projectionUpdateListener, QObject *parent)
+    : QObject(parent),
+      m_d(new Private(this, projectionUpdateListener))
 {
     updateSettings();
     connectSignals();
@@ -84,6 +88,23 @@ KisUpdateScheduler::~KisUpdateScheduler()
     delete m_d;
 }
 
+void KisUpdateScheduler::setThreadsLimit(int value)
+{
+    KIS_SAFE_ASSERT_RECOVER_RETURN(!m_d->processingBlocked);
+
+    barrierLock();
+    m_d->updaterContext.lock();
+    m_d->updaterContext.setThreadsLimit(value);
+    m_d->updaterContext.unlock();
+    unlock(false);
+}
+
+int KisUpdateScheduler::threadsLimit() const
+{
+    std::lock_guard<KisUpdaterContext> l(m_d->updaterContext);
+    return m_d->updaterContext.threadsLimit();
+}
+
 void KisUpdateScheduler::connectSignals()
 {
     connect(&m_d->updaterContext, SIGNAL(sigContinueUpdate(const QRect&)),
@@ -95,13 +116,16 @@ void KisUpdateScheduler::connectSignals()
 
     connect(&m_d->updaterContext, SIGNAL(sigSpareThreadAppeared()),
             SLOT(spareThreadAppeared()), Qt::DirectConnection);
+
+    connect(KisUpdateSchedulerConfigNotifier::instance(), SIGNAL(configChanged()),
+            SLOT(updateSettings()));
 }
 
 void KisUpdateScheduler::setProgressProxy(KoProgressProxy *progressProxy)
 {
     delete m_d->progressUpdater;
     m_d->progressUpdater = progressProxy ?
-        new KisQueuesProgressUpdater(progressProxy) : 0;
+        new KisQueuesProgressUpdater(progressProxy, this) : 0;
 }
 
 void KisUpdateScheduler::progressUpdate()
@@ -281,6 +305,8 @@ void KisUpdateScheduler::updateSettings()
 
     KisImageConfig config;
     m_d->balancingRatio = config.schedulerBalancingRatio();
+
+    setThreadsLimit(config.maxNumberOfThreads());
 }
 
 void KisUpdateScheduler::lock()

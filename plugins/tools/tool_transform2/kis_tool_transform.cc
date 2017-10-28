@@ -64,7 +64,6 @@
 #include <kis_pixel_selection.h>
 #include <kis_shape_selection.h>
 #include <kis_selection_manager.h>
-#include <kis_system_locker.h>
 #include <krita_utils.h>
 #include <kis_resources_snapshot.h>
 
@@ -83,7 +82,7 @@
 #include "kis_transform_mask_adapter.h"
 
 #include "kis_layer_utils.h"
-#include "kis_shape_layer.h"
+#include <KisDelayedUpdateNodeInterface.h>
 
 #include "strokes/transform_stroke_strategy.h"
 
@@ -387,7 +386,7 @@ void KisToolTransform::mouseMoveEvent(KoPointerEvent *event)
 
     cursorOutlineUpdateRequested(mousePos);
 
-    if (!MOVE_CONDITION(event, KisTool::PAINT_MODE)) {
+    if (this->mode() != KisTool::PAINT_MODE) {
         currentStrategy()->hoverActionCommon(event);
         setFunctionalCursor();
         KisTool::mouseMoveEvent(event);
@@ -398,72 +397,6 @@ void KisToolTransform::mouseMoveEvent(KoPointerEvent *event)
 void KisToolTransform::mouseReleaseEvent(KoPointerEvent *event)
 {
     KisTool::mouseReleaseEvent(event);
-}
-
-void KisToolTransform::touchEvent( QTouchEvent* event )
-{
-    //Count all moving touch points
-    int touchCount = 0;
-    Q_FOREACH ( QTouchEvent::TouchPoint tp, event->touchPoints() ) {
-        if( tp.state() == Qt::TouchPointMoved ) {
-            touchCount++;
-        }
-    }
-
-    //Use the touch point count to determine the gesture
-    switch( touchCount ) {
-    case 1: { //Panning
-        QTouchEvent::TouchPoint tp = event->touchPoints().at( 0 );
-        QPointF diff = tp.screenPos() - tp.lastScreenPos();
-
-        m_currentArgs.setTransformedCenter( m_currentArgs.transformedCenter() + diff );
-        outlineChanged();
-        break;
-    }
-    case 2: { //Scaling
-        QTouchEvent::TouchPoint tp1 = event->touchPoints().at( 0 );
-        QTouchEvent::TouchPoint tp2 = event->touchPoints().at( 1 );
-
-        float lastZoom = (tp1.lastScreenPos() - tp2.lastScreenPos()).manhattanLength();
-        float newZoom = (tp1.screenPos() - tp2.screenPos()).manhattanLength();
-
-        float diff = (newZoom - lastZoom) / 100;
-
-        m_currentArgs.setScaleX( m_currentArgs.scaleX() + diff );
-        m_currentArgs.setScaleY( m_currentArgs.scaleY() + diff );
-
-        outlineChanged();
-        break;
-    }
-    case 3: { //Rotation
-
-/* TODO: implement touch-based rotation.
-
-            Vector2f center;
-            Q_FOREACH ( const QTouchEvent::TouchPoint &tp, event->touchPoints() ) {
-                if( tp.state() == Qt::TouchPointMoved ) {
-                    center += Vector2f( tp.screenPos().x(), tp.screenPos().y() );
-                }
-            }
-            center /= touchCount;
-
-            QTouchEvent::TouchPoint tp = event->touchPoints().at(0);
-
-            Vector2f oldPosition = (Vector2f( tp.lastScreenPos().x(), tp.lastScreenPos().y() ) - center).normalized();
-            Vector2f newPosition = (Vector2f( tp.screenPos().x(), tp.screenPos().y() ) - center).normalized();
-
-            float oldAngle = qAcos( oldPosition.dot( Vector2f( 0.0f, 0.0f ) ) );
-            float newAngle = qAcos( newPosition.dot( Vector2f( 0.0f, 0.0f ) ) );
-
-            float diff = newAngle - oldAngle;
-
-            m_currentArgs.setAZ( m_currentArgs.aZ() + diff );
-
-            outlineChanged();
-*/
-        break;
-    }
-    }
 }
 
 void KisToolTransform::applyTransform()
@@ -691,7 +624,7 @@ bool KisToolTransform::tryFetchArgsFromCommandAndUndo(ToolTransformArgs *args, T
 
         // FIXME: can we make it async?
         image()->waitForDone();
-        forceRepaintShapeLayers(oldRootNode);
+        forceRepaintDelayedLayers(oldRootNode);
 
         result = true;
     }
@@ -868,6 +801,12 @@ void KisToolTransform::startStroke(ToolTransformArgs::TransformMode mode, bool f
         return;
     }
 
+    /**
+     * We must ensure that the currently selected subtree
+     * has finished all its updates.
+     */
+    forceRepaintDelayedLayers(currentNode);
+
     ToolTransformArgs fetchedArgs;
     bool fetchedFromCommand = false;
 
@@ -1008,10 +947,11 @@ QList<KisNodeSP> KisToolTransform::fetchNodesList(ToolTransformArgs::TransformMo
     QList<KisNodeSP> result;
 
     auto fetchFunc =
-        [&result, mode] (KisNodeSP node) {
+        [&result, mode, root] (KisNodeSP node) {
             if (node->isEditable() &&
                 (!node->inherits("KisShapeLayer") || mode == ToolTransformArgs::FREE_TRANSFORM) &&
-                !node->inherits("KisFileLayer")) {
+                !node->inherits("KisFileLayer") &&
+                (!node->inherits("KisTransformMask") || node == root)) {
 
                 result << node;
             }
@@ -1162,7 +1102,7 @@ void KisToolTransform::slotResetTransform()
 
             cancelStroke();
             image()->waitForDone();
-            forceRepaintShapeLayers(root);
+            forceRepaintDelayedLayers(root);
             startStroke(savedMode, true);
 
             KIS_ASSERT_RECOVER_NOOP(!m_currentArgs.continuedTransform());
@@ -1183,27 +1123,25 @@ void KisToolTransform::slotRestartTransform()
     ToolTransformArgs savedArgs(m_currentArgs);
     cancelStroke();
     image()->waitForDone();
-    forceRepaintShapeLayers(root);
+    forceRepaintDelayedLayers(root);
     startStroke(savedArgs.mode(), true);
 }
 
-void KisToolTransform::forceRepaintShapeLayers(KisNodeSP root)
+void KisToolTransform::forceRepaintDelayedLayers(KisNodeSP root)
 {
     KIS_SAFE_ASSERT_RECOVER_RETURN(root);
 
-    auto forceUpdateFunction =
+    KisLayerUtils::recursiveApplyNodes(root,
         [] (KisNodeSP node) {
-            KisShapeLayer *shapeLayer = dynamic_cast<KisShapeLayer*>(node.data());
-            if (shapeLayer) {
-                shapeLayer->forceRepaint();
-            }
-        };
+            KisDelayedUpdateNodeInterface *delayedUpdate =
+                dynamic_cast<KisDelayedUpdateNodeInterface*>(node.data());
 
-    if (m_workRecursively) {
-        KisLayerUtils::recursiveApplyNodes(root, forceUpdateFunction);
-    } else {
-        forceUpdateFunction(root);
-    }
+            if (delayedUpdate) {
+                delayedUpdate->forceUpdateTimedNode();
+            }
+        });
+
+    image()->waitForDone();
 }
 
 

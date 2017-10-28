@@ -131,7 +131,7 @@ public:
     /**
      * Delete this node
      */
-    virtual ~KisBaseNode();
+    ~KisBaseNode() override;
 
 
     /**
@@ -263,7 +263,14 @@ public:
      * Return all the properties of this layer as a KoProperties-based
      * serializable key-value list.
      */
-    KoProperties & nodeProperties() const;
+    const KoProperties & nodeProperties() const;
+
+    /**
+     * Set a node property.
+     * @param name name of the property to be set.
+     * @param value value to set the property to.
+     */
+    void setNodeProperty(const QString & name, const QVariant & value);
 
     /**
      * Merge the specified properties with the properties of this
@@ -341,6 +348,9 @@ public:
      * @return true if this node is visible (i.e, active (except for
      * selection masks where visible and active properties are
      * different)) in the graph
+     *
+     * @param bool recursive if true, check whether all parents of
+     * this node are visible as well.
      */
     virtual bool visible(bool recursive = false) const;
 
@@ -371,25 +381,6 @@ public:
      * edited.
      */
     void setUserLocked(bool l);
-
-    /**
-     * Return the locked status of this node. System Locked nodes indicates
-     * that an algorithm is processing them and that an other
-     * algorithm need to wait before accessing it.
-     */
-    bool systemLocked() const;
-
-    /**
-     * Set the locked status of this node. System Locked nodes indicates
-     * that an algorithm is processing them and that an other
-     * algorithm need to wait before accessing it.
-     *
-     * A KisNode will update the layer model when the lock is released.
-     *
-     * @param l lock state
-     * @param update set false if the tools shouldn't be locked
-     */
-    virtual void setSystemLocked(bool l, bool update = true);
 
     /**
      * @return true if the node can be edited:
@@ -484,7 +475,7 @@ public:
      * Return the keyframe channels associated with this node
      * @return list of keyframe channels
      */
-    QList<KisKeyframeChannel *> keyframeChannels() const;
+    QMap<QString, KisKeyframeChannel*> keyframeChannels() const;
 
     /**
      * Get the keyframe channel with given id.
@@ -566,10 +557,6 @@ Q_SIGNALS:
      * This signal is emitted when the node is locked or unlocked with \ref setUserLocked.
      */
     void userLockingChanged(bool);
-    /**
-     * This signal is emitted when the node is locked or unlocked with \ref setSystemLocked.
-     */
-    void systemLockingChanged(bool);
 
     void keyframeChannelAdded(KisKeyframeChannel *channel);
 

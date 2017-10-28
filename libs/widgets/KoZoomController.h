@@ -75,7 +75,7 @@ public:
                      QObject *parent = 0);
 
     /// destructor
-    ~KoZoomController();
+    ~KoZoomController() override;
 
     /// returns the zoomAction that is maintained by this controller
     KoZoomAction *zoomAction() const;
@@ -85,6 +85,11 @@ public:
      * @param mode the new mode that will be used to auto-calculate a new zoom-level if needed.
      */
     void setZoomMode(KoZoomMode::Mode mode);
+
+    /**
+     * @return the current zoom mode.
+     */
+    KoZoomMode::Mode zoomMode() const;
 
     /**
      * Set the resolution, zoom, the zoom mode for this zoom Controller.

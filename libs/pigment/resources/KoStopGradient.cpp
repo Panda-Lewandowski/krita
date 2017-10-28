@@ -25,6 +25,7 @@
 #include <QColor>
 #include <QFile>
 #include <QDomDocument>
+#include <QDomElement>
 #include <QBuffer>
 
 #include <klocalizedstring.h>
@@ -643,6 +644,37 @@ void KoStopGradient::parseSvgColor(QColor &color, const QString &s)
 QString KoStopGradient::defaultFileExtension() const
 {
     return QString(".svg");
+}
+
+void KoStopGradient::toXML(QDomDocument &doc, QDomElement &gradientElt) const
+{
+    gradientElt.setAttribute("type", "stop");
+    for (int s = 0; s<m_stops.size(); s++) {
+        KoGradientStop stop = m_stops.at(s);
+        QDomElement stopElt = doc.createElement("stop");
+        stopElt.setAttribute("offset", stop.first);
+        stopElt.setAttribute("bitdepth", stop.second.colorSpace()->colorDepthId().id());
+        stopElt.setAttribute("alpha", stop.second.opacityF());
+        stop.second.toXML(doc, stopElt);
+        gradientElt.appendChild(stopElt);
+    }
+}
+
+KoStopGradient KoStopGradient::fromXML(const QDomElement &elt)
+{
+    KoStopGradient gradient;
+    QList<KoGradientStop> stops;
+    QDomElement stopElt = elt.firstChildElement("stop");
+    while (!stopElt.isNull()) {
+        qreal offset = stopElt.attribute("offset", "0").toDouble();
+        QString bitDepth = stopElt.attribute("bitdepth", Integer8BitsColorDepthID.id());
+        KoColor color = KoColor::fromXML(stopElt.firstChildElement(), bitDepth);
+        color.setOpacity(stopElt.attribute("alpha", "1.0").toDouble());
+        stops.append(KoGradientStop(offset, color));
+        stopElt = stopElt.nextSiblingElement("stop");
+    }
+    gradient.setStops(stops);
+    return gradient;
 }
 
 bool KoStopGradient::saveToDevice(QIODevice *dev) const

@@ -51,7 +51,7 @@ class KRITAUI_EXPORT KisNodeManager : public QObject
 public:
 
     KisNodeManager(KisViewManager * view);
-    ~KisNodeManager();
+    ~KisNodeManager() override;
     
     void setView(QPointer<KisView>imageView);
 
@@ -158,6 +158,8 @@ public Q_SLOTS:
      */
     void createFromVisible();
 
+    void slotShowHideTimeline(bool value);
+
     void toggleIsolateActiveNode();
     void toggleIsolateMode(bool checked);
     void slotUpdateIsolateModeAction();
@@ -196,12 +198,14 @@ public Q_SLOTS:
 
     void saveNodeAsImage();
 
-    // merges the active layer with the layer below it.
-    void mergeLayer();
-
     void slotSplitAlphaIntoMask();
     void slotSplitAlphaWrite();
     void slotSplitAlphaSaveMerged();
+
+    void toggleLock();
+    void toggleVisibility();
+    void toggleAlphaLock();
+    void toggleInheritAlpha();
 
     /**
      * @brief slotSetSelectedNodes set the list of nodes selected in the layerbox. Selected nodes are not necessarily active nodes.

@@ -39,8 +39,18 @@ class KRITAIMAGE_EXPORT KisUpdateScheduler : public QObject, public KisStrokesFa
     Q_OBJECT
 
 public:
-    KisUpdateScheduler(KisProjectionUpdateListener *projectionUpdateListener);
-    virtual ~KisUpdateScheduler();
+    KisUpdateScheduler(KisProjectionUpdateListener *projectionUpdateListener, QObject *parent = 0);
+    ~KisUpdateScheduler() override;
+
+    /**
+     * Set the number of threads used by the scheduler
+     */
+    void setThreadsLimit(int value);
+
+    /**
+     * Return the number of threads available to the scheduler
+     */
+    int threadsLimit() const;
 
     /**
      * Sets the proxy that is going to be notified about the progress
@@ -68,11 +78,6 @@ public:
      * \see processQueues()
      */
     void unlock(bool resetLodLevels = true);
-
-    /**
-     * Called when it is necessary to reread configuration
-     */
-    void updateSettings();
 
     /**
      * Waits until all the running jobs are finished.
@@ -136,10 +141,10 @@ public:
     void fullRefresh(KisNodeSP root, const QRect& rc, const QRect &cropRect);
     void addSpontaneousJob(KisSpontaneousJob *spontaneousJob);
 
-    KisStrokeId startStroke(KisStrokeStrategy *strokeStrategy);
-    void addJob(KisStrokeId id, KisStrokeJobData *data);
-    void endStroke(KisStrokeId id);
-    bool cancelStroke(KisStrokeId id);
+    KisStrokeId startStroke(KisStrokeStrategy *strokeStrategy) override;
+    void addJob(KisStrokeId id, KisStrokeJobData *data) override;
+    void endStroke(KisStrokeId id) override;
+    bool cancelStroke(KisStrokeId id) override;
 
     /**
      * Sets the desired level of detail on which the strokes should
@@ -203,6 +208,12 @@ protected:
     KisUpdateScheduler();
     void connectSignals();
     void processQueues();
+
+protected Q_SLOTS:
+    /**
+     * Called when it is necessary to reread configuration
+     */
+    void updateSettings();
 
 private Q_SLOTS:
     void continueUpdate(const QRect &rect);

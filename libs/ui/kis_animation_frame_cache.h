@@ -46,7 +46,7 @@ public:
     static const QList<KisAnimationFrameCache*> caches();
 
     KisAnimationFrameCache(KisOpenGLImageTexturesSP textures);
-    ~KisAnimationFrameCache();
+    ~KisAnimationFrameCache() override;
 
     QImage getFrame(int time);
     bool uploadFrame(int time);
@@ -60,7 +60,7 @@ public:
 
     KisImageWSP image();
 
-    KisOpenGLUpdateInfoSP fetchFrameData(int time) const;
+    KisOpenGLUpdateInfoSP fetchFrameData(int time, KisImageSP image) const;
     void addConvertedFrameData(KisOpenGLUpdateInfoSP info, int time);
 
 Q_SIGNALS:

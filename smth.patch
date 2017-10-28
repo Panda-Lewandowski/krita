@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 60cf858..52fdb2f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -240,7 +240,7 @@ endif(MINGW)
+ #########################
+ ########################
+ 
+-find_package(ECM 5.19 REQUIRED NOMODULE)
++find_package(ECM 5.18 REQUIRED NOMODULE)
+ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR})
+ include(ECMOptionalAddSubdirectory)
+ include(ECMAddAppIcon)

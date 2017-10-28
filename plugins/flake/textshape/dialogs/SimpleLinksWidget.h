@@ -1,7 +1,7 @@
 /* This file is part of the KDE project
  * Copyright (C) 2001 David Faure <faure@kde.org>
  * Copyright (C) 2005-2007, 2009, 2010 Thomas Zander <zander@kde.org>
- * Copyright (C) 2010-2011 Boudewijn Rempt <boud@kogmbh.com>
+ * Copyright (C) 2010-2011 Boudewijn Rempt <boud@valdyas.org>
  * Copyright (C) 2013 Aman Madaan <madaan.amanmadaan@gmail.com>
  *
  * This library is free software; you can redistribute it and/or
@@ -34,7 +34,7 @@ class SimpleLinksWidget : public QWidget
     Q_OBJECT
 public:
     explicit SimpleLinksWidget(ReferencesTool *tool, QWidget *parent = 0);
-    virtual ~SimpleLinksWidget();
+    ~SimpleLinksWidget() override;
 
 Q_SIGNALS:
     void doneWithFocus();

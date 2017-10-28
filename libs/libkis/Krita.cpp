@@ -29,7 +29,9 @@
 #include <KoDockRegistry.h>
 #include <KoColorSpaceEngine.h>
 #include <KoColorModelStandardIds.h>
+#include <KoID.h>
 
+#include <kis_filter_strategy.h>
 #include <kactioncollection.h>
 #include <KisPart.h>
 #include <KisMainWindow.h>
@@ -49,6 +51,7 @@
 #include <brushengine/kis_paintop_preset.h>
 #include <kis_brush_server.h>
 #include <KoResourceServerProvider.h>
+#include <kis_action_registry.h>
 
 #include "View.h"
 #include "Document.h"
@@ -157,7 +160,7 @@ QList<Document *> Krita::documents() const
 QStringList Krita::filters() const
 {
     QStringList ls = KisFilterRegistry::instance()->keys();
-    qSort(ls);
+    std::sort(ls.begin(), ls.end());
     return ls;
 }
 
@@ -172,6 +175,31 @@ Filter *Krita::filter(const QString &name) const
     InfoObject *info = new InfoObject(fc);
     filter->setConfiguration(info);
     return filter;
+}
+
+QStringList Krita::colorModels() const
+{
+    QSet<QString> colorModelsIds;
+    QList<KoID> ids = KoColorSpaceRegistry::instance()->colorModelsList(KoColorSpaceRegistry::AllColorSpaces);
+    Q_FOREACH(KoID id, ids) {
+        colorModelsIds << id.id();
+    }
+    return colorModelsIds.toList();;
+}
+
+QStringList Krita::colorDepths(const QString &colorModel) const
+{
+    QSet<QString> colorDepthsIds;
+    QList<KoID> ids = KoColorSpaceRegistry::instance()->colorDepthList(colorModel, KoColorSpaceRegistry::AllColorSpaces);
+    Q_FOREACH(KoID id, ids) {
+        colorDepthsIds << id.id();
+    }
+    return colorDepthsIds.toList();;
+}
+
+QStringList Krita::filterStrategies() const
+{
+    return KisFilterStrategyRegistry::instance()->keys();
 }
 
 QStringList Krita::profiles(const QString &colorModel, const QString &colorDepth) const
@@ -271,6 +299,18 @@ QMap<QString, Resource *> Krita::resources(const QString &type) const
     return resources;
 }
 
+QStringList Krita::recentDocuments() const
+{
+    KConfigGroup grp = KSharedConfig::openConfig()->group(QString("RecentFiles"));
+    QStringList keys = grp.keyList();
+    QStringList recentDocuments;
+
+    for(int i = 0; i <= keys.filter("File").count(); i++)
+        recentDocuments << grp.readEntry(QString("File%1").arg(i), QString(""));
+
+    return recentDocuments;
+}
+
 Document* Krita::createDocument(int width, int height, const QString &name, const QString &colorModel, const QString &colorDepth, const QString &profile)
 {
     KisDocument *document = KisPart::instance()->createDocument();
@@ -297,7 +337,7 @@ Document* Krita::openDocument(const QString &filename)
 {
     KisDocument *document = KisPart::instance()->createDocument();
     KisPart::instance()->addDocument(document);
-    document->openUrl(QUrl::fromLocalFile(filename), KisDocument::OPEN_URL_FLAG_DO_NOT_ADD_TO_RECENT_FILES);
+    document->openUrl(QUrl::fromLocalFile(filename), KisDocument::DontAddToRecent);
     return new Document(document);
 }
 
@@ -307,10 +347,19 @@ Window* Krita::openWindow()
     return new Window(mw);
 }
 
-
-Action *Krita::createAction(const QString &text)
+Action *Krita::createAction(const QString &id, const QString &text)
 {
     KisAction *action = new KisAction(text, this);
+    action->setObjectName(id);
+
+    KisActionRegistry *actionRegistry = KisActionRegistry::instance();
+    actionRegistry->propertizeAction(action->objectName(), action);
+    bool ok; // We will skip this check
+    int activationFlags = actionRegistry->getActionProperty(id, "activationFlags").toInt(&ok, 2);
+    int activationConditions = actionRegistry->getActionProperty(id, "activationConditions").toInt(&ok, 2);
+    action->setActivationFlags((KisAction::ActivationFlags) activationFlags);
+    action->setActivationConditions((KisAction::ActivationConditions) activationConditions);
+
     KisPart::instance()->addScriptAction(action);
     return new Action(action->objectName(), action);
 }
@@ -374,4 +423,3 @@ QObject *Krita::fromVariant(const QVariant& v)
     else
         return 0;
 }
-

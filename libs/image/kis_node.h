@@ -87,12 +87,12 @@ public:
     /**
      * Delete this node
      */
-    virtual ~KisNode();
+    ~KisNode() override;
 
     virtual KisNodeSP clone() const = 0;
 
-    virtual bool accept(KisNodeVisitor &v);
-    virtual void accept(KisProcessingVisitor &visitor, KisUndoAdapter *undoAdapter);
+    bool accept(KisNodeVisitor &v) override;
+    void accept(KisProcessingVisitor &visitor, KisUndoAdapter *undoAdapter) override;
 
     /**
      * Re-implement this method to add constraints for the
@@ -129,6 +129,13 @@ public:
      * node, if propagate is true;
      */
     virtual void setDirty(const QRegion &region);
+
+    /**
+     * @brief setDirtyDontResetAnimationCache does almost the same thing as usual
+     * setDirty() call, but doesn't reset the animation cache (since onlion skins are
+     * not used when rendering animation.
+     */
+    void setDirtyDontResetAnimationCache();
 
     /**
      * Informs that the frames in the given range are no longer valid
@@ -224,6 +231,13 @@ protected:
      * layers only.
      */
     virtual QRect accessRect(const QRect &rect, PositionToFilthy pos = N_FILTHY) const;
+
+    /**
+     * Called each time direct child nodes are added or removed under this
+     * node as parent. This does not track changes inside the child nodes
+     * or the child nodes' properties.
+     */
+    virtual void childNodeChanged(KisNodeSP changedChildNode);
 
 public: // Graph methods
 
@@ -342,13 +356,13 @@ private:
     void createNodeProgressProxy();
 
 protected:
-    KisBaseNodeSP parentCallback() const;
-    void notifyParentVisibilityChanged(bool value);
-    void baseNodeChangedCallback();
-    void baseNodeInvalidateAllFramesCallback();
+    KisBaseNodeSP parentCallback() const override;
+    void notifyParentVisibilityChanged(bool value) override;
+    void baseNodeChangedCallback() override;
+    void baseNodeInvalidateAllFramesCallback() override;
 
 protected:
-    virtual void addKeyframeChannel(KisKeyframeChannel* channel);
+    void addKeyframeChannel(KisKeyframeChannel* channel) override;
 private:
 
     friend class KisNodeFacade;

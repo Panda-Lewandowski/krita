@@ -48,7 +48,6 @@
 #include <kis_layer.h>
 #include <kis_selection.h>
 #include <kis_paint_layer.h>
-#include <kis_system_locker.h>
 
 #include <canvas/kis_canvas2.h>
 #include <KisViewManager.h>
@@ -146,14 +145,12 @@ void KisToolGradient::endPrimaryAction(KoPointerEvent *event)
     CHECK_MODE_SANITY_OR_RETURN(KisTool::PAINT_MODE);
     setMode(KisTool::HOVER_MODE);
 
-    if (!currentNode() || currentNode()->systemLocked())
+    if (!currentNode() || !blockUntilOperationsFinished())
         return;
 
     if (m_startPos == m_endPos) {
         return;
     }
-
-    KisSystemLocker locker(currentNode());
 
     KisPaintDeviceSP device;
     KisImageSP image = this->image();
@@ -174,10 +171,9 @@ void KisToolGradient::endPrimaryAction(KoPointerEvent *event)
         painter.beginTransaction();
 
         KisCanvas2 * canvas = dynamic_cast<KisCanvas2 *>(this->canvas());
-        KoProgressUpdater * updater = canvas->viewManager()->createProgressUpdater(KoProgressUpdater::Unthreaded);
+        KoUpdaterPtr updater = canvas->viewManager()->createUnthreadedUpdater(i18nc("@info:progress", "Gradient..."));
 
-        updater->start(100, i18nc("@info:progress", "Gradient..."));
-        painter.setProgress(updater->startSubtask());
+        painter.setProgress(updater);
 
         painter.setGradientShape(m_shape);
         painter.paintGradient(m_startPos, m_endPos, m_repeat, m_antiAliasThreshold, m_reverse, 0, 0, image->width(), image->height());
@@ -187,7 +183,6 @@ void KisToolGradient::endPrimaryAction(KoPointerEvent *event)
         QApplication::restoreOverrideCursor();
         currentNode()->setDirty();
         notifyModified();
-        delete updater;
     }
     canvas()->updateCanvas(convertToPt(currentImage()->bounds()));
 }

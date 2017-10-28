@@ -25,6 +25,7 @@
 #include <kis_types.h>
 #include <kis_external_layer_iface.h>
 #include <kritaui_export.h>
+#include <KisDelayedUpdateNodeInterface.h>
 
 class QRect;
 class QIcon;
@@ -48,7 +49,7 @@ const QString KIS_SHAPE_LAYER_ID = "KisShapeLayer";
 
    XXX: what about removing shapes?
 */
-class KRITAUI_EXPORT KisShapeLayer : public KisExternalLayer, public KoShapeLayer
+class KRITAUI_EXPORT KisShapeLayer : public KisExternalLayer, public KoShapeLayer, public KisDelayedUpdateNodeInterface
 {
     Q_OBJECT
 
@@ -65,9 +66,9 @@ public:
      * This is used by createMergedLayer()
      */
     KisShapeLayer(const KisShapeLayer& _merge, const KisShapeLayer &_addShapes);
-    virtual ~KisShapeLayer();
+    ~KisShapeLayer() override;
 private:
-    void initShapeLayer(KoShapeBasedDocumentBase* controller);
+    void initShapeLayer(KoShapeBasedDocumentBase* controller, KisPaintDeviceSP copyFromProjection = 0);
 public:
     KisNodeSP clone() const override {
         return new KisShapeLayer(*this);
@@ -77,8 +78,8 @@ public:
 
     void setImage(KisImageWSP image) override;
 
-    virtual KisLayerSP createMergedLayerTemplate(KisLayerSP prevLayer) override;
-    virtual void fillMergedLayerTemplate(KisLayerSP dstLayer, KisLayerSP prevLayer) override;
+    KisLayerSP createMergedLayerTemplate(KisLayerSP prevLayer) override;
+    void fillMergedLayerTemplate(KisLayerSP dstLayer, KisLayerSP prevLayer) override;
 public:
 
     // KoShape overrides
@@ -132,10 +133,11 @@ public:
      *
      * shapeLayer->setDirty();
      * shapeLayer->image()->waitForDone();
-     * shapeLayer->forceRepaint();
+     * shapeLayer->forceUpdateTimedNode();
+     * shapeLayer->image()->waitForDone();
      *
      */
-    void forceRepaint();
+    void forceUpdateTimedNode() override;
 
 protected:
     using KoShape::isVisible;

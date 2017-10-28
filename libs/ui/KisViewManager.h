@@ -24,7 +24,6 @@
 #include <QPointer>
 
 #include <KisMainWindow.h>
-#include <KoProgressUpdater.h>
 #include <KoToolManager.h>
 
 #include <kritaui_export.h>
@@ -53,12 +52,11 @@ class KisPaintopBox;
 class KisActionManager;
 class KisScriptManager;
 class KisInputManager;
+class KoUpdater;
+class KoProgressUpdater;
 
 /**
- * Krita view class
- *
- * Following the broad model-view-controller idea this class shows you one view on the document.
- * There can be multiple views of the same document each in with independent settings for viewMode and zoom etc.
+ * KisViewManager manages the collection of views shown in a single mainwindow.
  */
 class KRITAUI_EXPORT KisViewManager : public QObject
 {
@@ -72,7 +70,7 @@ public:
      * @param parent   a parent widget we show ourselves in.
      */
     KisViewManager(QWidget *parent, KActionCollection *actionCollection);
-    virtual ~KisViewManager();
+    ~KisViewManager() override;
 
     /**
      * Retrieves the entire action collection.
@@ -90,16 +88,16 @@ public:  // Krita specific interfaces
 
     /// The resource provider contains all per-view settings, such as
     /// current color, current paint op etc.
-    KisCanvasResourceProvider * resourceProvider();
+    KisCanvasResourceProvider *resourceProvider();
 
     /// Return the canvasbase class
-    KisCanvas2 * canvasBase() const;
+    KisCanvas2 *canvasBase() const;
 
     /// Return the actual widget that is displaying the current image
     QWidget* canvas() const;
 
     /// Return the wrapper class around the statusbar
-    KisStatusBar * statusBar() const;
+    KisStatusBar *statusBar() const;
 
     /**
       * This adds a widget to the statusbar for this view.
@@ -118,7 +116,8 @@ public:  // Krita specific interfaces
     KisPaintopBox* paintOpBox() const;
 
     /// create a new progress updater
-    KoProgressUpdater *createProgressUpdater(KoProgressUpdater::Mode mode = KoProgressUpdater::Threaded);
+    QPointer<KoUpdater> createUnthreadedUpdater(const QString &name);
+    QPointer<KoUpdater> createThreadedUpdater(const QString &name);
 
     /// The selection manager handles everything action related to
     /// selections.
@@ -163,13 +162,13 @@ public:  // Krita specific interfaces
     KisUndoAdapter *undoAdapter();
 
     KisDocument *document() const;
-    
+
     KisScriptManager *scriptManager() const;
 
     int viewCount() const;
 
     /**
-     * @brief blockUntillOperationsFinished blocks the GUI of the application until execution
+     * @brief blockUntilOperationsFinished blocks the GUI of the application until execution
      *        of actions on \p image is finished
      * @param image the image which we should wait for
      * @return true if the image has finished execution of the actions, false if
@@ -179,18 +178,17 @@ public:  // Krita specific interfaces
 
 
     /**
-     * @brief blockUntillOperationsFinished blocks the GUI of the application until execution
+     * @brief blockUntilOperationsFinished blocks the GUI of the application until execution
      *        of actions on \p image is finished. Does *not* provide a "Cancel" button. So the
      *        user is forced to wait.
      * @param image the image which we should wait for
      */
-    void blockUntillOperationsFinishedForced(KisImageSP image);
+    void blockUntilOperationsFinishedForced(KisImageSP image);
 
 public:
 
     KisGridManager * gridManager() const;
     KisGuidesManager * guidesManager() const;
-    KisPaintingAssistantsManager* paintingAssistantsManager() const;
 
     /// disable and enable toolbar controls. used for disabling them during painting.
     void enableControls();

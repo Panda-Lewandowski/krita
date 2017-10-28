@@ -178,7 +178,9 @@ KisCanvas2::KisCanvas2(KisCoordinatesConverter *coordConverter, KoCanvasResource
     m_d->bootstrapLodBlocked = true;
     connect(view->mainWindow(), SIGNAL(guiLoadingFinished()), SLOT(bootstrapFinished()));
 
-    m_d->updateSignalCompressor.setDelay(10);
+    KisImageConfig config;
+
+    m_d->updateSignalCompressor.setDelay(1000 / config.fpsLimit());
     m_d->updateSignalCompressor.setMode(KisSignalCompressor::FIRST_ACTIVE);
 }
 
@@ -321,7 +323,7 @@ void KisCanvas2::channelSelectionChanged()
     KisImageSP image = this->image();
     m_d->channelFlags = image->rootLayer()->channelFlags();
 
-    m_d->view->viewManager()->blockUntillOperationsFinishedForced(image);
+    m_d->view->viewManager()->blockUntilOperationsFinishedForced(image);
 
     image->barrierLock();
     m_d->canvasWidget->channelSelectionChanged(m_d->channelFlags);
@@ -553,7 +555,7 @@ void KisCanvas2::setDisplayFilter(QSharedPointer<KisDisplayFilter> displayFilter
     m_d->displayColorConverter.setDisplayFilter(displayFilter);
     KisImageSP image = this->image();
 
-    m_d->view->viewManager()->blockUntillOperationsFinishedForced(image);
+    m_d->view->viewManager()->blockUntilOperationsFinishedForced(image);
 
     image->barrierLock();
     m_d->canvasWidget->setDisplayFilter(displayFilter);

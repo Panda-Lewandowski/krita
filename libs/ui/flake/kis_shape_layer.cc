@@ -89,9 +89,25 @@ public:
 
     void add(KoShape *child) override {
         SimpleShapeContainerModel::add(child);
+
+        /**
+         * The shape is always added with the absolute transformation set appropiately.
+         * Here we should just squeeze it into the layer's transformation.
+         */
+        KIS_SAFE_ASSERT_RECOVER_NOOP(inheritsTransform(child));
+        if (inheritsTransform(child)) {
+            QTransform parentTransform = q->absoluteTransformation(0);
+            child->applyAbsoluteTransformation(parentTransform.inverted());
+        }
     }
 
     void remove(KoShape *child) override {
+        KIS_SAFE_ASSERT_RECOVER_NOOP(inheritsTransform(child));
+        if (inheritsTransform(child)) {
+            QTransform parentTransform = q->absoluteTransformation(0);
+            child->applyAbsoluteTransformation(parentTransform);
+        }
+
         SimpleShapeContainerModel::remove(child);
     }
 
@@ -152,10 +168,13 @@ KisShapeLayer::KisShapeLayer(const KisShapeLayer& _rhs, KoShapeBasedDocumentBase
     // Make sure our new layer is visible otherwise the shapes cannot be painted.
     setVisible(true);
 
-    initShapeLayer(controller);
+    // copy the projection to avoid extra round of updates!
+    initShapeLayer(controller, _rhs.m_d->paintDevice);
 
     Q_FOREACH (KoShape *shape, _rhs.shapes()) {
-        addShape(shape->cloneShape());
+        KoShape *clonedShape = shape->cloneShape();
+        KIS_SAFE_ASSERT_RECOVER(clonedShape) { continue; }
+        addShape(clonedShape);
     }
 }
 
@@ -171,12 +190,16 @@ KisShapeLayer::KisShapeLayer(const KisShapeLayer& _rhs, const KisShapeLayer &_ad
 
     // copy in _rhs's shapes
     Q_FOREACH (KoShape *shape, _rhs.shapes()) {
-        addShape(shape->cloneShape());
+        KoShape *clonedShape = shape->cloneShape();
+        KIS_SAFE_ASSERT_RECOVER(clonedShape) { continue; }
+        addShape(clonedShape);
     }
 
     // copy in _addShapes's shapes
     Q_FOREACH (KoShape *shape, _addShapes.shapes()) {
-        addShape(shape->cloneShape());
+        KoShape *clonedShape = shape->cloneShape();
+        KIS_SAFE_ASSERT_RECOVER(clonedShape) { continue; }
+        addShape(clonedShape);
     }
 }
 
@@ -196,15 +219,20 @@ KisShapeLayer::~KisShapeLayer()
     delete m_d;
 }
 
-void KisShapeLayer::initShapeLayer(KoShapeBasedDocumentBase* controller)
+void KisShapeLayer::initShapeLayer(KoShapeBasedDocumentBase* controller, KisPaintDeviceSP copyFromProjection)
 {
     setSupportsLodMoves(false);
     setShapeId(KIS_SHAPE_LAYER_ID);
 
     KIS_ASSERT_RECOVER_NOOP(this->image());
-    m_d->paintDevice = new KisPaintDevice(image()->colorSpace());
-    m_d->paintDevice->setDefaultBounds(new KisDefaultBounds(this->image()));
-    m_d->paintDevice->setParentNode(this);
+
+    if (!copyFromProjection) {
+        m_d->paintDevice = new KisPaintDevice(image()->colorSpace());
+        m_d->paintDevice->setDefaultBounds(new KisDefaultBounds(this->image()));
+        m_d->paintDevice->setParentNode(this);
+    } else {
+        m_d->paintDevice = new KisPaintDevice(*copyFromProjection);
+    }
 
     m_d->canvas = new KisShapeLayerCanvas(this, image());
     m_d->canvas->setProjection(m_d->paintDevice);
@@ -376,7 +404,7 @@ void KisShapeLayer::setVisible(bool visible, bool isLoading)
     KisExternalLayer::setVisible(visible, isLoading);
 }
 
-void KisShapeLayer::forceRepaint()
+void KisShapeLayer::forceUpdateTimedNode()
 {
     m_d->canvas->forceRepaint();
 }
@@ -394,10 +422,10 @@ bool KisShapeLayer::saveShapesToStore(KoStore *store, QList<KoShape *> shapes, c
     KoStoreDevice storeDev(store);
     storeDev.open(QIODevice::WriteOnly);
 
-    qSort(shapes.begin(), shapes.end(), KoShape::compareShapeZIndex);
+    std::sort(shapes.begin(), shapes.end(), KoShape::compareShapeZIndex);
 
-    SvgWriter writer(shapes, sizeInPt);
-    writer.save(storeDev);
+    SvgWriter writer(shapes);
+    writer.save(storeDev, sizeInPt);
 
     if (!store->close()) {
         return false;
@@ -408,15 +436,13 @@ bool KisShapeLayer::saveShapesToStore(KoStore *store, QList<KoShape *> shapes, c
 
 QList<KoShape *> KisShapeLayer::createShapesFromSvg(QIODevice *device, const QString &baseXmlDir, const QRectF &rectInPixels, qreal resolutionPPI, KoDocumentResourceManager *resourceManager, QSizeF *fragmentSize)
 {
-    QXmlStreamReader reader(device);
-    reader.setNamespaceProcessing(false);
 
     QString errorMsg;
     int errorLine = 0;
     int errorColumn;
 
     KoXmlDocument doc;
-    bool ok = doc.setContent(&reader, &errorMsg, &errorLine, &errorColumn);
+    bool ok = doc.setContent(device, false, &errorMsg, &errorLine, &errorColumn);
     if (!ok) {
         errKrita << "Parsing error in " << "contents.svg" << "! Aborting!" << endl
         << " In line: " << errorLine << ", column: " << errorColumn << endl

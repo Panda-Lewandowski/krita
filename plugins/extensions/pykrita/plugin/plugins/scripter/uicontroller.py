@@ -1,6 +1,7 @@
 from PyQt5.QtGui import QTextCursor
 from PyQt5.QtWidgets import (QToolBar, QMenuBar, QTabWidget,
-                             QLabel, QVBoxLayout, QMessageBox)
+                             QLabel, QVBoxLayout, QMessageBox,
+                             QSplitter)
 from PyQt5.QtCore import Qt, QObject
 from scripter.ui_scripter.syntax import syntax, syntaxstyles
 from scripter.ui_scripter.editor import pythoneditor
@@ -27,6 +28,8 @@ class UIController(object):
         self.editor = pythoneditor.CodeEditor(scripter)
         self.tabWidget = QTabWidget()
         self.statusBar = QLabel('untitled')
+        self.splitter = QSplitter()
+        self.splitter.setOrientation(Qt.Vertical)
         self.highlight = syntax.PythonHighlighter(self.editor.document(), syntaxstyles.DefaultSyntaxStyle())
 
         self.scripter = scripter
@@ -39,8 +42,9 @@ class UIController(object):
         vbox = QVBoxLayout(self.mainWidget)
         vbox.addWidget(self.menu_bar)
         vbox.addWidget(self.actionToolbar)
-        vbox.addWidget(self.editor)
-        vbox.addWidget(self.tabWidget)
+        self.splitter.addWidget(self.editor)
+        self.splitter.addWidget(self.tabWidget)
+        vbox.addWidget(self.splitter)
         vbox.addWidget(self.statusBar)
 
         self.mainWidget.resize(400, 500)
@@ -71,7 +75,7 @@ class UIController(object):
         modules = []
 
         for class_path in actions_module.action_classes:
-            _module, _klass =  class_path.rsplit('.', maxsplit=1)
+            _module, _klass = class_path.rsplit('.', maxsplit=1)
             modules.append(dict(module='{0}.{1}'.format(module_path, _module),
                                 klass=_klass))
 
@@ -91,7 +95,7 @@ class UIController(object):
         modules = []
 
         for classPath in widgetsModule.widgetClasses:
-            _module, _klass =  classPath.rsplit('.', maxsplit=1)
+            _module, _klass = classPath.rsplit('.', maxsplit=1)
             modules.append(dict(module='{0}.{1}'.format(modulePath, _module),
                                 klass=_klass))
 
@@ -108,10 +112,12 @@ class UIController(object):
                 if method:
                     return method()
 
-    def findTabWidget(self, widgetName):
+    def findTabWidget(self, widgetName, childName=''):
         for index in range(self.tabWidget.count()):
             widget = self.tabWidget.widget(index)
             if widget.objectName() == widgetName:
+                if childName:
+                    widget = widget.findChild(QObject, childName)
                 return widget
 
     def showException(self, exception):
@@ -161,7 +167,6 @@ class UIController(object):
                 writeSettings()
 
         self.scripter.settings.endGroup()
-
 
     def _readSettings(self):
         """ It's similar to _writeSettings, but reading the settings when the ScripterDialog is closed. """
