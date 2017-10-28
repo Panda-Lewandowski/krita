@@ -239,8 +239,7 @@ endif(MINGW)
 ## Look for KDE and Qt ##
 #########################
 ########################
-
-find_package(ECM 5.19 REQUIRED NOMODULE)
+find_package(ECM 5.18 REQUIRED NOMODULE)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR})
 include(ECMOptionalAddSubdirectory)
 include(ECMAddAppIcon)

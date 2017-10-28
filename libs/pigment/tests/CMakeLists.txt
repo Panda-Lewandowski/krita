@@ -9,6 +9,14 @@ if(MSVC OR (WIN32 AND "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel"))
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:LIBC.LIB")
 endif()
 
+macro_add_unittest_definitions()
+
+set(TestColorBlendingSources TestColorBlending.cpp)
+ki18n_wrap_ui(TestColorBlendingSources TestColorBlendingWindow.ui)
+add_executable(TestColorBlending ${TestColorBlendingSources})
+target_link_libraries(TestColorBlending kritaimage)
+
+
 ecm_add_tests(
     TestKoColorSpaceRegistry.cpp
     TestKoColorSpaceAbstract.cpp
@@ -27,6 +35,7 @@ ecm_add_tests(
 ecm_add_tests(
     TestColorConversion.cpp
     TestKoColorSpaceMaths.cpp
+    TestColorBlending.cpp
 
     NAME_PREFIX "libs-pigment-"
     LINK_LIBRARIES kritapigment Qt5::Test)
