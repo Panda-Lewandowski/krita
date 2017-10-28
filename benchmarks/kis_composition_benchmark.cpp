@@ -554,7 +554,7 @@ void checkRounding(qreal opacity, qreal flow, qreal averageOpacity = -1, quint32
 #endif
 
 
-void KisCompositionBenchmark::checkRoundingAlphaDarken_05_03()
+/*void KisCompositionBenchmark::checkRoundingAlphaDarken_05_03()
 {
 #ifdef HAVE_VC
     checkRounding<AlphaDarkenCompositor32<quint8, quint32> >(0.5,0.3);
@@ -652,6 +652,8 @@ void KisCompositionBenchmark::compareAlphaDarkenOps()
 
 void KisCompositionBenchmark::compareRgbF32AlphaDarkenOps()
 {
+    return;
+
     const KoColorSpace *cs = KoColorSpaceRegistry::instance()->colorSpace("RGBA", "F32", "");
     KoCompositeOp *opAct = KoOptimizedCompositeOpFactory::createAlphaDarkenOp128(cs);
     KoCompositeOp *opExp = new KoCompositeOpAlphaDarken<KoRgbF32Traits>(cs);
@@ -700,6 +702,8 @@ void KisCompositionBenchmark::compareOverOpsNoMask()
 
 void KisCompositionBenchmark::compareRgbF32OverOps()
 {
+    return;
+
     const KoColorSpace *cs = KoColorSpaceRegistry::instance()->colorSpace("RGBA", "F32", "");
     KoCompositeOp *opAct = KoOptimizedCompositeOpFactory::createOverOp128(cs);
     KoCompositeOp *opExp = new KoCompositeOpOver<KoRgbF32Traits>(cs);
@@ -807,7 +811,7 @@ void KisCompositionBenchmark::benchmarkMemcpy()
     }
 
     freeTiles(tiles, 0, 0);
-}
+}*/
 
 #ifdef HAVE_VC
     const int vecSize = Vc::float_v::size();
@@ -816,7 +820,7 @@ void KisCompositionBenchmark::benchmarkMemcpy()
     const size_t floatVecAlignment = qMax(vecSize * sizeof(float), sizeof(void*));
 #endif
 
-void KisCompositionBenchmark::benchmarkUintFloat()
+/*void KisCompositionBenchmark::benchmarkUintFloat()
 {
 #ifdef HAVE_VC
     using uint_v = Vc::SimdArray<unsigned int, Vc::float_v::size()>;
@@ -911,7 +915,7 @@ void KisCompositionBenchmark::benchmarkFloatUint()
     MEMALIGN_FREE(iData);
     MEMALIGN_FREE(fData);
 #endif
-}
+}*/
 
 void KisCompositionBenchmark::benchmarkFloatIntUint()
 {
@@ -919,7 +923,7 @@ void KisCompositionBenchmark::benchmarkFloatIntUint()
     using int_v = Vc::SimdArray<int, Vc::float_v::size()>;
     using uint_v = Vc::SimdArray<unsigned int, Vc::float_v::size()>;
 
-    const int dataSize = 4096;
+    const int dataSize = 1048576;
     void *ptr = 0;
     int error = MEMALIGN_ALLOC(&ptr, uint32VecAlignment, dataSize * sizeof(quint32));
     if (error) {
@@ -935,7 +939,11 @@ void KisCompositionBenchmark::benchmarkFloatIntUint()
     QBENCHMARK {
         for (int i = 0; i < dataSize; i += Vc::float_v::size()) {
             // conversion float -> int -> uint
-            uint_v b(int_v(Vc::float_v(fData + i)));
+            //uint_v b(int_v(Vc::round(fData + i)));
+            __m256 x = Vc::float_v(fData + i).data();
+            __m256i y = _mm256_cvtps_epi32(x);
+            int_v r(y);
+            uint_v b(r);
 
             b.store(iData + i);
         }
@@ -945,6 +953,25 @@ void KisCompositionBenchmark::benchmarkFloatIntUint()
     MEMALIGN_FREE(fData);
 #endif
 }
+
+/*void KisCompositionBenchmark::testOfConversion()
+{
+#ifdef HAVE_VC
+    using int_v = Vc::SimdArray<int, Vc::float_v::size()>;
+
+    Vc::float_v v;
+    for (size_t i = 0; i < Vc::float_v::Size; ++i) {
+      v[i] = 3.14 + i;
+    }
+    QBENCHMARK {
+        __m256 x = v.data();
+        __m256i y = _mm256_cvtps_epi32(x);
+        int_v result(y);
+
+    }
+
+#endif
+}*/
 
 QTEST_MAIN(KisCompositionBenchmark)
 

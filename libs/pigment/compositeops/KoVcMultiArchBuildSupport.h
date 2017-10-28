@@ -21,6 +21,9 @@
 #define __KOVCMULTIARCHBUILDSUPPORT_H
 
 #include "config-vc.h"
+#include "kis_debug.h"
+
+//#define HAVE_VC 1
 
 #ifdef HAVE_VC
 
@@ -70,6 +73,9 @@ template<class FactoryType>
 typename FactoryType::ReturnType
 createOptimizedClass(typename FactoryType::ParamType param)
 {
+    // in c-tor of one of the factories
+    //qDebug() << ppVar(Vc::CurrentImplementation::current());
+
     static bool isConfigInitialized = false;
     static bool useVectorization = true;
 

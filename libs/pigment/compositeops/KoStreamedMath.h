@@ -175,6 +175,23 @@ static inline void fetch_colors_32(const quint8 *data,
     c3 = Vc::float_v(int_v( data_i        & mask));
 }
 
+/*static inline int_v iround(Vc::float_v::AsArg v) {
+#ifdef Vc_IMPL_SSE4_1
+    #ifndef Vc_IMPL_AVX
+        __m128 x = v.data();
+        __m128i y = _mm_cvtps_epi32(x);
+        int_v result(y);
+    #else
+        __m256 x = v.data();
+        __m256i y = _mm256_cvtps_epi32(x);
+        int_v result(y);
+    #endif
+#else
+    int_v result = int_v(Vc::round(v));
+#endif
+    return result;
+}*/
+
 /**
  * Pack color and alpha values to Vc::float_v::size() pixels 32-bit each
  * (4 channels, 8 bit per channel).  The color data is considered
@@ -199,10 +216,11 @@ static inline void write_channels_32(quint8 *data,
     //        The achieve that we need to implement Vc::iRound()
 
     uint_v mask(lowByteMask);
-    uint_v v1 = uint_v(int_v(Vc::round(alpha))) << 24;
-    uint_v v2 = (uint_v(int_v(Vc::round(c1))) & mask) << 16;
-    uint_v v3 = (uint_v(int_v(Vc::round(c2))) & mask) <<  8;
-    uint_v v4 = uint_v(int_v(Vc::round(c3))) & mask;
+    //uint_v v1 =  uint_v(Vc::iround(alpha)) << 24;  //
+    uint_v v1 =  uint_v(int_v(round(alpha))) << 24;
+    uint_v v2 = (uint_v(int_v(Vc::round(c1))) & mask) << 16; //
+    uint_v v3 = (uint_v(int_v(Vc::round(c2))) & mask) <<  8; //
+    uint_v v4 = uint_v(int_v(Vc::round(c3)))  & mask; //
     v1 = v1 | v2;
     v3 = v3 | v4;
     (v1 | v3).store((quint32*)data, Vc::Aligned);

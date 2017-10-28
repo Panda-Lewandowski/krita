@@ -25,26 +25,20 @@ class KisCompositionBenchmark : public QObject
 {
     Q_OBJECT
 private Q_SLOTS:
-    void checkRoundingAlphaDarken_05_03();
+    /*void checkRoundingAlphaDarken_05_03();
     void checkRoundingAlphaDarken_05_05();
     void checkRoundingAlphaDarken_05_07();
     void checkRoundingAlphaDarken_05_10();
     void checkRoundingAlphaDarken_05_10_08();
-    void checkRoundingAlphaDarkenF32_05_03();
-    void checkRoundingAlphaDarkenF32_05_05();
-    void checkRoundingAlphaDarkenF32_05_07();
-    void checkRoundingAlphaDarkenF32_05_10();
-    void checkRoundingAlphaDarkenF32_05_10_08();
 
     void checkRoundingOver();
-    void checkRoundingOverRgbaF32();
 
     void compareAlphaDarkenOps();
     void compareAlphaDarkenOpsNoMask();
-    void compareRgbF32AlphaDarkenOps();
+
     void compareOverOps();
     void compareOverOpsNoMask();
-    void compareRgbF32OverOps();
+
 
     void testRgb8CompositeAlphaDarkenLegacy();
     void testRgb8CompositeAlphaDarkenOptimized();
@@ -52,11 +46,9 @@ private Q_SLOTS:
     void testRgb8CompositeOverLegacy();
     void testRgb8CompositeOverOptimized();
 
-    void testRgbF32CompositeAlphaDarkenLegacy();
-    void testRgbF32CompositeAlphaDarkenOptimized();
 
-    void testRgbF32CompositeOverLegacy();
-    void testRgbF32CompositeOverOptimized();
+
+
 
     void testRgb8CompositeAlphaDarkenReal_Aligned();
     void testRgb8CompositeOverReal_Aligned();
@@ -67,8 +59,23 @@ private Q_SLOTS:
 
     void benchmarkUintFloat();
     void benchmarkUintIntFloat();
-    void benchmarkFloatUint();
+    void benchmarkFloatUint();*/
     void benchmarkFloatIntUint();
+    //void testOfConversion();
+
+private:
+    void compareRgbF32OverOps();
+    void checkRoundingAlphaDarkenF32_05_03();
+    void checkRoundingAlphaDarkenF32_05_05();
+    void checkRoundingAlphaDarkenF32_05_07();
+    void checkRoundingAlphaDarkenF32_05_10();
+    void checkRoundingAlphaDarkenF32_05_10_08();
+    void checkRoundingOverRgbaF32();
+    void compareRgbF32AlphaDarkenOps();
+    void testRgbF32CompositeAlphaDarkenLegacy();
+    void testRgbF32CompositeAlphaDarkenOptimized();
+    void testRgbF32CompositeOverLegacy();
+    void testRgbF32CompositeOverOptimized();
 };
 
 #endif /* __KIS_COMPOSITION_BENCHMARK_H */
