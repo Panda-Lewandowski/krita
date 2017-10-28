@@ -7,11 +7,13 @@
 void TestColorBlending::test()
 {
     QDialog window;
-
-    TestColorBlendingWindow ui;
-    ui.setupUi(window);
-
     window.exec();
+}
+
+TestColorBlendingWindow::TestColorBlendingWindow(QWidget *parent)
+    : QWidget(parent)
+{
+   //this->setupUi(this);
 }
 
 QTEST_MAIN(TestColorBlending)
