@@ -2,7 +2,7 @@
  * Copyright (C) 1998-1999 Torben Weis       <weis@kde.org>
  * Copyright (C) 2000-2005 David Faure       <faure@kde.org>
  * Copyright (C) 2007-2008 Thorsten Zachmann <zachmann@kde.org>
- * Copyright (C) 2010-2012 Boudewijn Rempt   <boud@kogmbh.com>
+ * Copyright (C) 2010-2012 Boudewijn Rempt   <boud@valdyas.org>
  * Copyright (C) 2011 Inge Wallin            <ingwa@kogmbh.com>
  * Copyright (C) 2015 Michael Abrahams       <miabraha@gmail.com>
  *
@@ -208,7 +208,7 @@ void KisPart::removeDocument(KisDocument *document)
 KisMainWindow *KisPart::createMainWindow()
 {
     KisMainWindow *mw = new KisMainWindow();
-    Q_FOREACH(QAction *action, d->scriptActions) {
+    Q_FOREACH(KisAction *action, d->scriptActions) {
         mw->viewManager()->scriptManager()->addAction(action);
     }
     dbgUI <<"mainWindow" << (void*)mw << "added to view" << this;
@@ -256,8 +256,6 @@ void KisPart::addView(KisView *view)
         d->views.append(view);
     }
 
-    connect(view, SIGNAL(destroyed()), this, SLOT(viewDestroyed()));
-
     emit sigViewAdded(view);
 }
 
@@ -271,9 +269,7 @@ void KisPart::removeView(KisView *view)
      *             document *before* the saving is completed, a crash
      *             will happen.
      */
-    if (view->mainWindow()->hackIsSaving()) {
-        return;
-    }
+    KIS_ASSERT_RECOVER_RETURN(!view->mainWindow()->hackIsSaving());
 
     emit sigViewRemoved(view);
 
@@ -373,24 +369,12 @@ KisAnimationCachePopulator* KisPart::cachePopulator() const
 
 void KisPart::openExistingFile(const QUrl &url)
 {
-    Q_ASSERT(url.isLocalFile());
-    qApp->setOverrideCursor(Qt::BusyCursor);
-    KisDocument *document = createDocument();
-    if (!document->openUrl(url)) {
-        delete document;
-        return;
-    }
-    if (!document->image()) {
-        delete document;
-        return;
-    }
-    document->setModified(false);
-    addDocument(document);
+    // TODO: refactor out this method!
 
     KisMainWindow *mw = currentMainwindow();
-    mw->addViewAndNotifyLoadingCompleted(document);
+    KIS_SAFE_ASSERT_RECOVER_RETURN(mw);
 
-    qApp->restoreOverrideCursor();
+    mw->openDocument(url, KisMainWindow::None);
 }
 
 void KisPart::updateShortcuts()
@@ -462,14 +446,6 @@ void KisPart::openTemplate(const QUrl &url)
     }
 
     qApp->restoreOverrideCursor();
-}
-
-void KisPart::viewDestroyed()
-{
-    KisView *view = qobject_cast<KisView*>(sender());
-    if (view) {
-        removeView(view);
-    }
 }
 
 void KisPart::addRecentURLToAllMainWindows(QUrl url)

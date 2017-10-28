@@ -64,7 +64,11 @@ class KisConfigWidget;
 class KRITAUI_EXPORT KisImportExportFilter : public QObject
 {
     Q_OBJECT
-
+public:
+    static const QString ImageContainsTransparencyTag;
+    static const QString ColorModelIDTag;
+    static const QString ColorDepthIDTag;
+    static const QString sRGBTag;
 public:
     /**
      * This enum is used to signal the return state of your filter.
@@ -91,7 +95,7 @@ public:
                             JustInCaseSomeBrokenCompilerUsesLessThanAByte = 255
                           };
 
-    virtual ~KisImportExportFilter();
+    ~KisImportExportFilter() override;
 
     void setBatchMode(bool batchmode);
     void setFilename(const QString &filename);
@@ -129,7 +133,7 @@ public:
      * @param to The mimetype of the destination file/document
      * @return a serializable KisPropertiesConfiguration object
      */
-    virtual KisPropertiesConfigurationSP lastSavedConfiguration(const QByteArray &from = "", const QByteArray &to = "") const;
+    KisPropertiesConfigurationSP lastSavedConfiguration(const QByteArray &from = "", const QByteArray &to = "") const;
 
     /**
      * @brief createConfigurationWidget creates a widget that can be used to define the settings for a given import/export filter

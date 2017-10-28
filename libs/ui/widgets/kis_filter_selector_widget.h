@@ -37,14 +37,14 @@ class QHideEvent;
 class QShowEvent;
 
 /**
- * XXX
+ * Widget for selecting the filter. This shows the widget if there is any.
  */
 class KisFilterSelectorWidget : public QWidget
 {
     Q_OBJECT
 public:
     KisFilterSelectorWidget(QWidget* parent);
-    ~KisFilterSelectorWidget();
+    ~KisFilterSelectorWidget() override;
     void setFilter(KisFilterSP f);
     void setView(KisViewManager *view);
     void setPaintDevice(bool showAll, KisPaintDeviceSP);
@@ -52,13 +52,14 @@ public:
     bool isFilterGalleryVisible() const;
     KisFilterSP currentFilter() const;
 public Q_SLOTS:
-    void setVisible(bool visible);
+    void setVisible(bool visible) override;
     void showFilterGallery(bool visible);
 protected Q_SLOTS:
     void slotBookmarkedFilterConfigurationSelected(int);
     void setFilterIndex(const QModelIndex&);
     void editConfigurations();
     void update();
+    void showXMLdialog();
 Q_SIGNALS:
     void configurationChanged();
     void sigFilterGalleryToggled(bool visible);
@@ -83,17 +84,17 @@ public:
     void setFilterModel(QAbstractItemModel * model);
     void activateFilter(QModelIndex idx);
 
-    QSize minimumSizeHint() const
+    QSize minimumSizeHint() const override
     {
         return QSize(200, QTreeView::sizeHint().height());
     }
 
-    QSize sizeHint() const
+    QSize sizeHint() const override
     {
         return QSize(header()->width(), QTreeView::sizeHint().height());
     }
 
-    void setModel(QAbstractItemModel *model)
+    void setModel(QAbstractItemModel *model) override
     {
         QTreeView::setModel(model);
         if (header()->visualIndex(0) != -1) {
@@ -103,7 +104,7 @@ public:
 
 protected:
 
-    void resizeEvent(QResizeEvent *event)
+    void resizeEvent(QResizeEvent *event) override
     {
         if (event->size().width() > 10) {
             setModel(m_model);
@@ -115,13 +116,13 @@ protected:
         QTreeView::resizeEvent(event);
     }
 
-    void showEvent(QShowEvent * event)
+    void showEvent(QShowEvent * event) override
     {
         setModel(m_model);
         QTreeView::showEvent(event);
     }
 
-    void hideEvent(QHideEvent * event)
+    void hideEvent(QHideEvent * event) override
     {
         setModel(0);
         QTreeView::hideEvent(event);

@@ -73,10 +73,10 @@ public:
     **/
     KisLayer(KisImageWSP image, const QString &name, quint8 opacity);
     KisLayer(const KisLayer& rhs);
-    virtual ~KisLayer();
+    ~KisLayer() override;
 
     /// returns the image's colorSpace or null, if there is no image
-    virtual const KoColorSpace * colorSpace() const override;
+    const KoColorSpace * colorSpace() const override;
 
     /// returns the layer's composite op for the colorspace of the layer's parent.
     const KoCompositeOp * compositeOp() const override;
@@ -87,7 +87,7 @@ public:
     /**
      * \see a comment in KisNode::projectionPlane()
      */
-    virtual KisAbstractProjectionPlaneSP projectionPlane() const override;
+    KisAbstractProjectionPlaneSP projectionPlane() const override;
 
     /**
      * The projection plane representing the layer itself without any
@@ -111,7 +111,7 @@ public:
      * Return the layer data before the effect masks have had their go
      * at it.
      */
-    virtual KisPaintDeviceSP original() const override = 0;
+    KisPaintDeviceSP original() const override = 0;
 
     /**
      * @return the selection associated with this layer, if there is
@@ -125,8 +125,8 @@ public:
      */
     virtual KisSelectionSP selection() const;
 
-    virtual KisBaseNode::PropertyList sectionModelProperties() const override;
-    virtual void setSectionModelProperties(const KisBaseNode::PropertyList &properties) override;
+    KisBaseNode::PropertyList sectionModelProperties() const override;
+    void setSectionModelProperties(const KisBaseNode::PropertyList &properties) override;
 
     /**
      * set/unset the channel flag for the alpha channel of this layer
@@ -224,6 +224,11 @@ public:
      */
     void updateClones(const QRect &rect);
 
+    /**
+     * Informs this layers that its masks might have changed.
+     */
+    void notifyChildMaskChanged(KisNodeSP changedChildMask);
+
 public:
     qint32 x() const override;
     qint32 y() const override;
@@ -256,7 +261,12 @@ public:
     /**
      * @return the list of effect masks
      */
-    QList<KisEffectMaskSP> effectMasks(KisNodeSP lastNode = KisNodeSP()) const;
+    const QList<KisEffectMaskSP> &effectMasks() const;
+
+    /**
+     * @return the list of effect masks up to a certain node
+     */
+    QList<KisEffectMaskSP> effectMasks(KisNodeSP lastNode) const;
 
     /**
      * Get the group layer that contains this layer.
@@ -271,6 +281,8 @@ public:
 protected:
     // override from KisNode
     QRect changeRect(const QRect &rect, PositionToFilthy pos = N_FILTHY) const override;
+
+    void childNodeChanged(KisNodeSP changedChildNode) override;
 
 protected:
 
@@ -371,6 +383,13 @@ protected:
                      KisNodeSP filthyNode, KisNodeSP lastNode) const;
 
     bool canMergeAndKeepBlendOptions(KisLayerSP otherLayer);
+
+    void updateSelectionMask();
+
+    void updateEffectMasks();
+
+    QList<KisEffectMaskSP> searchEffectMasks(KisNodeSP lastNode) const;
+
 private:
     friend class KisLayerProjectionPlane;
     friend class KisTransformMask;

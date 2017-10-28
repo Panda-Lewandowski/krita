@@ -181,11 +181,6 @@ void KisPaintLayer::copyOriginalToProjection(const KisPaintDeviceSP original,
     }
 }
 
-void KisPaintLayer::setDirty(const QRect & rect)
-{
-    KisLayer::setDirty(rect);
-}
-
 QIcon KisPaintLayer::icon() const
 {
     return KisIconUtils::loadIcon("paintLayer");
@@ -311,13 +306,11 @@ void KisPaintLayer::setOnionSkinEnabled(bool state)
         m_d->onionSkinConnection.clear();
     }
 
-    nodeProperties().setProperty("onionskin", state);
-
     if (m_d->contentChannel) {
         m_d->contentChannel->setOnionSkinsEnabled(state);
     }
 
-    baseNodeChangedCallback();
+    setNodeProperty("onionskin", state);
 }
 
 void KisPaintLayer::slotExternalUpdateOnionSkins()

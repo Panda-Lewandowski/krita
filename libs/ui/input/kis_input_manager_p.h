@@ -23,6 +23,7 @@
 #include <QEvent>
 #include <QTouchEvent>
 #include <QScopedPointer>
+#include <QPointer>
 
 #include "kis_input_manager.h"
 #include "kis_shortcut_matcher.h"
@@ -46,25 +47,23 @@ public:
     void addStrokeShortcut(KisAbstractInputAction* action, int index, const QList< Qt::Key >& modifiers, Qt::MouseButtons buttons);
     void addKeyShortcut(KisAbstractInputAction* action, int index,const QList<Qt::Key> &keys);
     void addTouchShortcut( KisAbstractInputAction* action, int index, KisShortcutConfiguration::GestureAction gesture );
+    bool addNativeGestureShortcut( KisAbstractInputAction* action, int index, KisShortcutConfiguration::GestureAction gesture );
     void addWheelShortcut(KisAbstractInputAction* action, int index, const QList< Qt::Key >& modifiers, KisShortcutConfiguration::MouseWheelMovement wheelAction);
     bool processUnhandledEvent(QEvent *event);
     void setupActions();
-    void saveTouchEvent( QTouchEvent* event );
     bool handleCompressedTabletEvent(QEvent *event);
 
     KisInputManager *q;
 
-    QPointer<KisCanvas2> canvas = 0;
-    KisToolProxy *toolProxy = 0;
+    QPointer<KisCanvas2> canvas;
+    QPointer<KisToolProxy> toolProxy;
 
     bool forwardAllEventsToTool = false;
     bool ignoringQtCursorEvents();
 
-    bool disableTouchOnCanvas = false;
     bool touchHasBlockedPressEvents = false;
 
     KisShortcutMatcher matcher;
-    QTouchEvent *lastTouchEvent = 0;
 
     KisToolInvocationAction *defaultInputAction = 0;
 
@@ -83,7 +82,7 @@ public:
     void blockMouseEvents();
     void allowMouseEvents();
     void eatOneMousePress();
-    void maskSyntheticEvents(bool value);
+    void setMaskSyntheticEvents(bool value);
     void setTabletActive(bool value);
     void resetCompressor();
 
@@ -91,6 +90,7 @@ public:
     void debugEvent(QEvent *event)
     {
       if (!KisTabletDebugger::instance()->debugEnabled()) return;
+
       QString msg1 = useBlocking && ignoringQtCursorEvents() ? "[BLOCKED] " : "[       ]";
       Event *specificEvent = static_cast<Event*>(event);
       dbgTablet << KisTabletDebugger::instance()->eventToString(*specificEvent, msg1);
@@ -100,7 +100,7 @@ public:
     {
     public:
         ProximityNotifier(Private *_d, QObject *p);
-        bool eventFilter(QObject* object, QEvent* event );
+        bool eventFilter(QObject* object, QEvent* event ) override;
     private:
         KisInputManager::Private *d;
     };
@@ -111,7 +111,7 @@ public:
         CanvasSwitcher(Private *_d, QObject *p);
         void addCanvas(KisCanvas2 *canvas);
         void removeCanvas(KisCanvas2 *canvas);
-        bool eventFilter(QObject* object, QEvent* event );
+        bool eventFilter(QObject* object, QEvent* event ) override;
 
     private:
         void setupFocusThreshold(QObject *object);
@@ -139,9 +139,11 @@ public:
 
         bool hungry{false};   // Continue eating mouse strokes
         bool peckish{false};  // Eat a single mouse press event
-        bool eatSyntheticEvents{true}; // Mask all synthetic events
+        bool eatSyntheticEvents{false}; // Mask all synthetic events
     };
     EventEater eventEater;
 
     bool containsPointer = true;
+
+    int accumulatedScrollDelta = 0;
 };

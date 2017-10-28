@@ -24,7 +24,10 @@
 #include <QMetaType>
 #include "kritapigment_export.h"
 #include "KoColorConversionTransformation.h"
+#include "KoColorSpaceRegistry.h"
+#include "KoColorSpaceTraits.h"
 #include <boost/operators.hpp>
+#include "kis_assert.h"
 
 
 class QDomDocument;
@@ -41,10 +44,17 @@ class KRITAPIGMENT_EXPORT KoColor : public boost::equality_comparable<KoColor>
 {
 
 public:
-    /// Create an empty KoColor. It will be valid, but also black and transparent
-    KoColor();
+    static void init();
 
-    ~KoColor();
+    /// Create an empty KoColor. It will be valid, but also black and transparent
+    KoColor() {
+        const KoColor * const prefab = s_prefab;
+
+        // assert that KoColor::init was called and everything is set up properly.
+        KIS_ASSERT_X(prefab != nullptr, "KoColor::KoColor()", "KoColor not initialized yet.");
+
+        *this = *prefab;
+    }
 
     /// Create a null KoColor. It will be valid, but all channels will be set to 0
     explicit KoColor(const KoColorSpace * colorSpace);
@@ -59,22 +69,43 @@ public:
     KoColor(const KoColor &src, const KoColorSpace * colorSpace);
 
     /// Copy constructor -- deep copies the colors.
-    KoColor(const KoColor & rhs);
+    KoColor(const KoColor & rhs) {
+        *this = rhs;
+    }
 
     /**
      * assignment operator to copy the data from the param color into this one.
      * @param other the color we are going to copy
      * @return this color
      */
-    KoColor &operator=(const KoColor &other);
+    inline KoColor &operator=(const KoColor &rhs) {
+        if (&rhs == this) {
+            return *this;
+        }
 
-    bool operator==(const KoColor &other) const;
+        m_colorSpace = rhs.m_colorSpace;
+        m_size = rhs.m_size;
+        memcpy(m_data, rhs.m_data, m_size);
+
+        assertPermanentColorspace();
+
+        return *this;
+    }
+
+    bool operator==(const KoColor &other) const {
+        if (*colorSpace() != *other.colorSpace())
+            return false;
+        Q_ASSERT(m_size == other.m_size);
+        return memcmp(m_data, other.m_data, m_size) == 0;
+    }
 
     /// return the current colorSpace
-    const KoColorSpace * colorSpace() const;
+    const KoColorSpace * colorSpace() const {
+        return m_colorSpace;
+    }
 
     /// return the current profile
-    const KoColorProfile *  profile() const;
+    const KoColorProfile *profile() const;
 
     /// Convert this KoColor to the specified colorspace. If the specified colorspace is the
     /// same as the original colorspace, do nothing. Returns the converted KoColor.
@@ -86,7 +117,6 @@ public:
 
     /// assign new profile without converting pixel data
     void setProfile(const KoColorProfile *profile);
-
 
     /// Replace the existing color data, and colorspace with the specified data.
     /// The data is copied.
@@ -113,21 +143,25 @@ public:
     qreal opacityF() const;
 
     /// Convenient function for converting from a QColor
-    void fromQColor(const QColor& c) const;
+    void fromQColor(const QColor& c);
 
     /**
      * @return the buffer associated with this color object to be used with the
      *         transformation object created by the color space of this KoColor
      *         or to copy to a different buffer from the same color space
      */
-    quint8 * data();
+    quint8 * data() {
+        return m_data;
+    }
 
     /**
      * @return the buffer associated with this color object to be used with the
      *         transformation object created by the color space of this KoColor
      *         or to copy to a different buffer from the same color space
      */
-    const quint8 * data() const;
+    const quint8 * data() const {
+        return m_data;
+    }
 
     /**
      * Serialize this color following Create's swatch color specification available
@@ -157,6 +191,26 @@ public:
      */
     static KoColor fromXML(const QDomElement& elt, const QString & bitDepthId);
 
+    /**
+     * Unserialize a color following Create's swatch color specification available
+     * at http://create.freedesktop.org/wiki/index.php/Swatches_-_colour_file_format
+     *
+     * @param elt the element to unserialize (<CMYK />, <sRGB />, <RGB />)
+     * @param bitDepthId the bit depth is unspecified by the spec, this allow to select
+     *                   a preferred bit depth for creating the KoColor object (if that
+     *                   bit depth isn't available, this function will randomly select
+     *                   an other bit depth)
+     * @param ok If a an error occurs, *ok is set to false; otherwise it's set to true
+     * @return the unserialize color, or an empty color object if the function failed
+     *         to unserialize the color
+     */
+    static KoColor fromXML(const QDomElement& elt, const QString & bitDepthId, bool* ok);
+
+    /**
+     * @brief toQString create a user-visible string of the channel names and the channel values
+     * @param color the color to create the string from
+     * @return a string that can be used to display the values of this color to the user.
+     */
     static QString toQString(const KoColor &color);
 
 #ifndef NODEBUG
@@ -165,8 +219,19 @@ public:
 #endif
 
 private:
-    class Private;
-    Private * const d;
+    inline void assertPermanentColorspace() {
+#ifndef NODEBUG
+        if (m_colorSpace) {
+            Q_ASSERT(*m_colorSpace == *KoColorSpaceRegistry::instance()->permanentColorspace(m_colorSpace));
+        }
+#endif
+    }
+
+    const KoColorSpace *m_colorSpace;
+    quint8 m_data[MAX_PIXEL_SIZE];
+    quint8 m_size;
+
+    static const KoColor *s_prefab;
 };
 
 Q_DECLARE_METATYPE(KoColor)

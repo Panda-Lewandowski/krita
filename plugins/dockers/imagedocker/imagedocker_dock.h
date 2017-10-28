@@ -56,10 +56,10 @@ class ImageDockerDock: public QDockWidget, public KoCanvasObserverBase
     
 public:
     ImageDockerDock();
-    virtual ~ImageDockerDock();
-    QString observerName() { return "ImageDockerDock"; }
-    virtual void setCanvas(KoCanvasBase* canvas);
-    virtual void unsetCanvas() {
+    ~ImageDockerDock() override;
+    QString observerName() override { return "ImageDockerDock"; }
+    void setCanvas(KoCanvasBase* canvas) override;
+    void unsetCanvas() override {
         m_canvas = 0; // Intentionally not disabled if there's no canvas
     }
     
@@ -80,12 +80,13 @@ private Q_SLOTS:
     void slotChangeRoot(const QString& path);
     
 protected:
-    bool eventFilter(QObject *obj, QEvent *event);
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
-    void dragEnterEvent(QDragEnterEvent *event);
-    void dropEvent(QDropEvent *event);
-    void showEvent(QShowEvent *);
-private:
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
+    void showEvent(QShowEvent *) override;
+    void hideEvent(QHideEvent *event) override;
+ private:
     void addCurrentPathToHistory();
     void updatePath(const QString& path);
     qint64 generateImageID() const;
@@ -93,6 +94,10 @@ private:
     bool isImageLoaded() const { return m_currImageID != -1; }
     void setZoom(const ImageInfo& info);
     
+    void saveConfigState();
+    void loadConfigState();
+
+
 private:
     QFileSystemModel*      m_model;
     QButtonGroup*          m_zoomButtons;

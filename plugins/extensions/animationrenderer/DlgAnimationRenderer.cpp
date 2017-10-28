@@ -75,7 +75,7 @@ DlgAnimationRenderer::DlgAnimationRenderer(KisDocument *doc, QWidget *parent)
     m_page->intStart->setValue(doc->image()->animationInterface()->playbackRange().start());
 
     m_page->intEnd->setMinimum(doc->image()->animationInterface()->fullClipRange().start());
-    m_page->intEnd->setMaximum(doc->image()->animationInterface()->fullClipRange().end());
+   //m_page->intEnd->setMaximum(doc->image()->animationInterface()->fullClipRange().end()); // animators sometimes want to export after end frame
     m_page->intEnd->setValue(doc->image()->animationInterface()->playbackRange().end());
 
     QFileInfo audioFileInfo(doc->image()->animationInterface()->audioChannelFileName());
@@ -99,8 +99,7 @@ DlgAnimationRenderer::DlgAnimationRenderer(KisDocument *doc, QWidget *parent)
 
     setMainWidget(m_page);
 
-    KoJsonTrader trader;
-    QList<QPluginLoader *>list = trader.query("Krita/AnimationExporter", "");
+    QList<QPluginLoader *>list = KoJsonTrader::instance()->query("Krita/AnimationExporter", "");
     Q_FOREACH(QPluginLoader *loader, list) {
         QJsonObject json = loader->metaData().value("MetaData").toObject();
         QStringList mimetypes = json.value("X-KDE-Export").toString().split(",");
@@ -183,12 +182,52 @@ DlgAnimationRenderer::~DlgAnimationRenderer()
 
 }
 
+QString DlgAnimationRenderer::fetchRenderingDirectory() const
+{
+    QString result = m_page->dirRequester->fileName();
+
+    if (m_page->shouldExportOnlyVideo->isChecked()) {
+        const QFileInfo info(fetchRenderingFileName());
+
+        if (info.isAbsolute()) {
+            result = info.absolutePath();
+        }
+    }
+
+    return result;
+}
+
+QString DlgAnimationRenderer::fetchRenderingFileName() const
+{
+    QString filename = m_page->videoFilename->fileName();
+
+    if (QFileInfo(filename).completeSuffix().isEmpty()) {
+        QString mimetype = m_page->cmbRenderType->itemData(m_page->cmbRenderType->currentIndex()).toString();
+        filename += "." + KisMimeDatabase::suffixesForMimeType(mimetype).first();
+    }
+
+    if (QFileInfo(filename).isRelative()) {
+        QDir baseDir(m_page->dirRequester->fileName());
+
+        if (m_page->shouldExportOnlyVideo->isChecked()) {
+            QString documentDir = QFileInfo(m_doc->url().toLocalFile()).absolutePath();
+            if (!documentDir.isEmpty()) {
+                baseDir = documentDir;
+            }
+        }
+
+        filename = baseDir.absoluteFilePath(filename);
+    }
+
+    return filename;
+}
+
 KisPropertiesConfigurationSP DlgAnimationRenderer::getSequenceConfiguration() const
 {
     KisPropertiesConfigurationSP cfg = new KisPropertiesConfiguration();
     cfg->setProperty("basename", m_page->txtBasename->text());
     cfg->setProperty("last_document_path", m_doc->localFilePath());
-    cfg->setProperty("directory", m_page->dirRequester->fileName());
+    cfg->setProperty("directory", fetchRenderingDirectory());
     cfg->setProperty("first_frame", m_page->intStart->value());
     cfg->setProperty("last_frame", m_page->intEnd->value());
     cfg->setProperty("sequence_start", m_page->sequenceStart->value());
@@ -224,7 +263,7 @@ KisPropertiesConfigurationSP DlgAnimationRenderer::getFrameExportConfiguration()
     if (m_frameExportConfigWidget) {
         KisPropertiesConfigurationSP cfg = m_frameExportConfigWidget->configuration();
         cfg->setProperty("basename", m_page->txtBasename->text());
-        cfg->setProperty("directory", m_page->dirRequester->fileName());
+        cfg->setProperty("directory", fetchRenderingDirectory());
         cfg->setProperty("first_frame", m_page->intStart->value());
         cfg->setProperty("last_frame", m_page->intEnd->value());
         cfg->setProperty("sequence_start", m_page->sequenceStart->value());
@@ -243,12 +282,7 @@ KisPropertiesConfigurationSP DlgAnimationRenderer::getVideoConfiguration() const
     }
 
     KisPropertiesConfigurationSP cfg = new KisPropertiesConfiguration();
-    QString filename = m_page->videoFilename->fileName();
-    if (QFileInfo(filename).completeSuffix().isEmpty()) {
-        QString mimetype = m_page->cmbRenderType->itemData(m_page->cmbRenderType->currentIndex()).toString();
-        filename += "." + KisMimeDatabase::suffixesForMimeType(mimetype).first();
-    }
-    cfg->setProperty("filename", filename);
+    cfg->setProperty("filename", fetchRenderingFileName());
     cfg->setProperty("first_frame", m_page->intStart->value());
     cfg->setProperty("last_frame", m_page->intEnd->value());
     cfg->setProperty("sequence_start", m_page->sequenceStart->value());
@@ -277,7 +311,7 @@ KisPropertiesConfigurationSP DlgAnimationRenderer::getEncoderConfiguration() con
         cfg = m_encoderConfigWidget->configuration();
     }
     cfg->setProperty("mimetype", m_page->cmbRenderType->currentData().toString());
-    cfg->setProperty("directory", m_page->dirRequester->fileName());
+    cfg->setProperty("directory", fetchRenderingDirectory());
     cfg->setProperty("first_frame", m_page->intStart->value());
     cfg->setProperty("last_frame", m_page->intEnd->value());
     cfg->setProperty("sequence_start", m_page->sequenceStart->value());
@@ -286,9 +320,11 @@ KisPropertiesConfigurationSP DlgAnimationRenderer::getEncoderConfiguration() con
     return cfg;
 }
 
-void DlgAnimationRenderer::setEncoderConfiguration(KisPropertiesConfigurationSP /*cfg*/)
+void DlgAnimationRenderer::setEncoderConfiguration(KisPropertiesConfigurationSP cfg)
 {
-
+    if (m_encoderConfigWidget) {
+        m_encoderConfigWidget->setConfiguration(cfg);
+    }
 }
 
 QSharedPointer<KisImportExportFilter> DlgAnimationRenderer::encoderFilter() const
@@ -334,6 +370,8 @@ void DlgAnimationRenderer::selectRenderOptions()
             dlg.setButtons(KoDialog::Ok | KoDialog::Cancel);
             if (!dlg.exec()) {
                 m_encoderConfigWidget->setConfiguration(filter->lastSavedConfiguration());
+            } else {
+                KisConfig().setExportConfiguration(mimetype.toLatin1(), m_encoderConfigWidget->configuration());
             }
             dlg.setMainWidget(0);
             m_encoderConfigWidget->hide();
@@ -439,7 +477,9 @@ QString DlgAnimationRenderer::findFFMpeg()
 
         QProcess testProcess;
         testProcess.start(path, QStringList() << "-version");
-        testProcess.waitForFinished(1000);
+        if (testProcess.waitForStarted(1000)) {
+            testProcess.waitForFinished(1000);
+        }
 
         const bool successfulStart =
             testProcess.state() == QProcess::NotRunning &&
@@ -472,7 +512,7 @@ void DlgAnimationRenderer::slotExportTypeChanged()
     }
 
     // if only exporting video
-    if (m_page->shouldExportOnlyVideo) {
+    if (m_page->shouldExportOnlyVideo->isChecked()) {
         m_page->cmbMimetype->setEnabled(false); // allow to change image format
         m_page->imageSequenceOptionsGroup->setVisible(false);
         m_page->videoOptionsGroup->setVisible(false); //shrinks the horizontal space temporarily to help resize() work

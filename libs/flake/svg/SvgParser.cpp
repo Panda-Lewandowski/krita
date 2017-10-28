@@ -42,6 +42,7 @@
 #include <KoPathShapeLoader.h>
 #include <commands/KoShapeGroupCommand.h>
 #include <commands/KoShapeUngroupCommand.h>
+#include <KoXmlReader.h>
 #include <KoImageCollection.h>
 #include <KoColorBackground.h>
 #include <KoGradientBackground.h>
@@ -67,6 +68,64 @@
 
 #include "kis_debug.h"
 #include "kis_global.h"
+#include <algorithm>
+
+
+struct SvgParser::DeferredUseStore {
+    struct El {
+        El(const KoXmlElement* ue, const QString& key) :
+            m_useElement(ue), m_key(key) {
+        }
+        const KoXmlElement* m_useElement;
+        QString m_key;
+    };
+    DeferredUseStore(SvgParser* p) :
+        m_parse(p) {
+    }
+
+    void add(const KoXmlElement* useE, const QString& key) {
+        m_uses.push_back(El(useE, key));
+    }
+    bool empty() const {
+        return m_uses.empty();
+    }
+
+    void checkPendingUse(const KoXmlElement &b, QList<KoShape*>& shapes) {
+        KoShape* shape = 0;
+        const QString id = b.attribute("id");
+
+        if (id.isEmpty())
+            return;
+
+        // qDebug() << "Checking id: " << id;
+        auto i = std::partition(m_uses.begin(), m_uses.end(),
+                                [&](const El& e) -> bool {return e.m_key != id;});
+
+        while (i != m_uses.end()) {
+            const El& el = m_uses.back();
+            if (m_parse->m_context.hasDefinition(el.m_key)) {
+                // qDebug() << "Found pending use for id: " << el.m_key;
+                shape = m_parse->resolveUse(*(el.m_useElement), el.m_key);
+                if (shape) {
+                    shapes.append(shape);
+                }
+            }
+            m_uses.pop_back();
+        }
+    }
+
+    ~DeferredUseStore() {
+        while (!m_uses.empty()) {
+            const El& el = m_uses.back();
+            qDebug()
+                    << "WARNING: could not find path in <use xlink:href=\"#xxxxx\" expression. Losing data here. Key:"
+                    << el.m_key;
+            m_uses.pop_back();
+        }
+    }
+    SvgParser* m_parse;
+    std::vector<El> m_uses;
+};
 
 
 SvgParser::SvgParser(KoDocumentResourceManager *documentResourceManager)
@@ -77,6 +136,7 @@ SvgParser::SvgParser(KoDocumentResourceManager *documentResourceManager)
 
 SvgParser::~SvgParser()
 {
+    qDeleteAll(m_symbols);
 }
 
 void SvgParser::setXmlBaseDir(const QString &baseDir)
@@ -97,6 +157,7 @@ void SvgParser::setResolution(const QRectF boundsInPixels, qreal pixelsPerInch)
 {
     KIS_ASSERT(!m_context.currentGC());
     m_context.pushGraphicsContext();
+    m_context.currentGC()->isResolutionFrame = true;
     m_context.currentGC()->pixelsPerInch = pixelsPerInch;
 
     const qreal scale = 72.0 / pixelsPerInch;
@@ -108,6 +169,13 @@ void SvgParser::setResolution(const QRectF boundsInPixels, qreal pixelsPerInch)
 QList<KoShape*> SvgParser::shapes() const
 {
     return m_shapes;
+}
+
+QVector<KoSvgSymbol *> SvgParser::takeSymbols()
+{
+    QVector<KoSvgSymbol*> symbols = m_symbols;
+    m_symbols.clear();
+    return symbols;
 }
 
 // Helper functions
@@ -159,7 +227,7 @@ SvgFilterHelper* SvgParser::findFilter(const QString &id, const QString &href)
         return 0;
 
     const KoXmlElement &e = m_context.definition(id);
-    if (e.childNodesCount() == 0) {
+    if (KoXml::childNodesCount(e) == 0) {
         QString mhref = e.attribute("xlink:href").mid(1);
 
         if (m_context.hasDefinition(mhref))
@@ -410,7 +478,7 @@ QSharedPointer<KoVectorPatternBackground> SvgParser::parsePattern(const KoXmlEle
      * the pattern should be painted in "user" coordinates. Therefore, we should handle
      * this offfset separately.
      *
-     * TODO: Please also not that this offset is different from extraShapeOffset(),
+     * TODO: Please also note that this offset is different from extraShapeOffset(),
      * because A.inverted() * B != A * B.inverted(). I'm not sure which variant is
      * correct (DK)
      */
@@ -575,6 +643,43 @@ bool SvgParser::parseMarker(const KoXmlElement &e)
     marker->setShapes({markerShape});
 
     m_markers.insert(id, QExplicitlySharedDataPointer<KoMarker>(marker.take()));
+
+    return true;
+}
+
+bool SvgParser::parseSymbol(const KoXmlElement &e)
+{
+    const QString id = e.attribute("id");
+
+    if (id.isEmpty()) return false;
+
+    KoSvgSymbol *svgSymbol = new KoSvgSymbol();
+
+    // ensure that the clip path is loaded in local coordinates system
+    m_context.pushGraphicsContext(e, false);
+    m_context.currentGC()->matrix = QTransform();
+    m_context.currentGC()->currentBoundingBox = QRectF(0.0, 0.0, 1.0, 1.0);
+
+    QString title = e.firstChildElement("title").toElement().text();
+
+    KoShape *symbolShape = parseGroup(e);
+
+    m_context.popGraphicsContext();
+
+    if (!symbolShape) return false;
+
+    svgSymbol->shape = symbolShape;
+    svgSymbol->title = title;
+    svgSymbol->id = id;
+    if (title.isEmpty()) svgSymbol->title = id;
+
+    if (svgSymbol->shape->boundingRect() == QRectF(0.0, 0.0, 0.0, 0.0)) {
+        warnFlake << "Symbol" << id << "seems to be empty, discarding";
+        delete svgSymbol;
+        return false;
+    }
+
+    m_symbols << svgSymbol;
 
     return true;
 }
@@ -893,7 +998,7 @@ void SvgParser::applyFilter(KoShape *shape)
 
     // parse filter region
     QRectF bound(shape->position(), shape->size());
-    // work on bounding box without viewbox tranformation applied
+    // work on bounding box without viewbox transformation applied
     // so user space coordinates of bounding box and filter region match up
     bound = gc->viewboxTransform.inverted().mapRect(bound);
 
@@ -1083,28 +1188,39 @@ void SvgParser::applyMaskClipping(KoShape *shape, const QPointF &shapeToOriginal
     shape->setClipMask(clipMask);
 }
 
-KoShape* SvgParser::parseUse(const KoXmlElement &e)
+KoShape* SvgParser::parseUse(const KoXmlElement &e, DeferredUseStore* deferredUseStore)
+{
+    QString href = e.attribute("xlink:href");
+    if (href.isEmpty())
+        return 0;
+
+    QString key = href.mid(1);
+    const bool gotDef = m_context.hasDefinition(key);
+    if (gotDef) {
+        return resolveUse(e, key);
+    }
+    if (!gotDef && deferredUseStore) {
+        deferredUseStore->add(&e, key);
+        return 0;
+    }
+    qDebug() << "WARNING: Did not find reference for svg 'use' element. Skipping. Id: "
+             << key;
+    return 0;
+}
+
+KoShape* SvgParser::resolveUse(const KoXmlElement &e, const QString& key)
 {
     KoShape *result = 0;
 
-    QString id = e.attribute("xlink:href");
-    if (!id.isEmpty()) {
+    SvgGraphicsContext *gc = m_context.pushGraphicsContext(e);
 
-        QString key = id.mid(1);
-        if (m_context.hasDefinition(key)) {
+    // TODO: parse 'width' and 'height' as well
+    gc->matrix.translate(parseUnitX(e.attribute("x", "0")), parseUnitY(e.attribute("y", "0")));
 
-            SvgGraphicsContext *gc = m_context.pushGraphicsContext(e);
+    const KoXmlElement &referencedElement = m_context.definition(key);
+    result = parseGroup(e, referencedElement);
 
-            // TODO: parse 'width' and 'hight' as well
-            gc->matrix.translate(parseUnitX(e.attribute("x", "0")), parseUnitY(e.attribute("y", "0")));
-
-            const KoXmlElement &referencedElement = m_context.definition(key);
-            result = parseGroup(e, referencedElement);
-
-            m_context.popGraphicsContext();
-        }
-    }
-
+    m_context.popGraphicsContext();
     return result;
 }
 
@@ -1156,8 +1272,27 @@ QList<KoShape*> SvgParser::parseSvg(const KoXmlElement &e, QSizeF *fragmentSize)
 
     QList<KoShape*> shapes;
 
-    // SVG 1.1: skip the rendering of the element if it has null viewBox
-    if (gc->currentBoundingBox.isValid()) {
+    // First find the metadata
+    for (KoXmlNode n = e.firstChild(); !n.isNull(); n = n.nextSibling()) {
+        KoXmlElement b = n.toElement();
+        if (b.isNull())
+            continue;
+
+        if (b.tagName() == "title") {
+            m_documentTitle = b.text().trimmed();
+        }
+        else if (b.tagName() == "desc") {
+            m_documentDescription = b.text().trimmed();
+        }
+        else if (b.tagName() == "metadata") {
+            // TODO: parse the metadata
+        }
+    }
+
+
+    // SVG 1.1: skip the rendering of the element if it has null viewBox; however an inverted viewbox is just peachy
+    // and as mother makes them -- if mother is inkscape.
+    if (gc->currentBoundingBox.normalized().isValid()) {
         shapes = parseContainer(e);
     }
 
@@ -1184,6 +1319,16 @@ void SvgParser::applyViewBoxTransform(const KoXmlElement &element)
 QList<QExplicitlySharedDataPointer<KoMarker> > SvgParser::knownMarkers() const
 {
     return m_markers.values();
+}
+
+QString SvgParser::documentTitle() const
+{
+    return m_documentTitle;
+}
+
+QString SvgParser::documentDescription() const
+{
+    return m_documentDescription;
 }
 
 void SvgParser::setFileFetcher(SvgParser::FileFetcherFunc func)
@@ -1219,7 +1364,7 @@ KoShape* SvgParser::parseGroup(const KoXmlElement &b, const KoXmlElement &overri
     if (!overrideChildrenFrom.isNull()) {
         // we upload styles from both: <use> and <defs>
         uploadStyleToContext(overrideChildrenFrom);
-        childShapes = parseSingleElement(overrideChildrenFrom);
+        childShapes = parseSingleElement(overrideChildrenFrom, 0);
     } else {
         childShapes = parseContainer(b);
     }
@@ -1243,6 +1388,8 @@ QList<KoShape*> SvgParser::parseContainer(const KoXmlElement &e)
     // are we parsing a switch container
     bool isSwitch = e.tagName() == "switch";
 
+    DeferredUseStore deferredUseStore(this);
+
     for (KoXmlNode n = e.firstChild(); !n.isNull(); n = n.nextSibling()) {
         KoXmlElement b = n.toElement();
         if (b.isNull())
@@ -1264,27 +1411,29 @@ QList<KoShape*> SvgParser::parseContainer(const KoXmlElement &e)
             }
         }
 
-        QList<KoShape*> currentShapes = parseSingleElement(b);
+        QList<KoShape*> currentShapes = parseSingleElement(b, &deferredUseStore);
         shapes.append(currentShapes);
 
         // if we are parsing a switch, stop after the first supported element
         if (isSwitch && !currentShapes.isEmpty())
             break;
     }
-
     return shapes;
 }
 
-QList<KoShape*> SvgParser::parseSingleElement(const KoXmlElement &b)
+QList<KoShape*> SvgParser::parseSingleElement(const KoXmlElement &b, DeferredUseStore* deferredUseStore)
 {
     QList<KoShape*> shapes;
 
     // save definition for later instantiation with 'use'
     m_context.addDefinition(b);
+    if (deferredUseStore) {
+        deferredUseStore->checkPendingUse(b, shapes);
+    }
 
     if (b.tagName() == "svg") {
         shapes += parseSvg(b);
-    } else if (b.tagName() == "g" || b.tagName() == "a" || b.tagName() == "symbol") {
+    } else if (b.tagName() == "g" || b.tagName() == "a") {
         // treat svg link <a> as group so we don't miss its child elements
         shapes += parseGroup(b);
     } else if (b.tagName() == "switch") {
@@ -1292,7 +1441,7 @@ QList<KoShape*> SvgParser::parseSingleElement(const KoXmlElement &b)
         shapes += parseContainer(b);
         m_context.popGraphicsContext();
     } else if (b.tagName() == "defs") {
-        if (b.childNodesCount() > 0) {
+        if (KoXml::childNodesCount(b) > 0) {
             /**
              * WARNING: 'defs' are basically 'display:none' style, therefore they should not play
              *          any role in shapes outline calculation. But setVisible(false) shapes do!
@@ -1300,6 +1449,7 @@ QList<KoShape*> SvgParser::parseSingleElement(const KoXmlElement &b)
              */
             KoShape *defsShape = parseGroup(b);
             defsShape->setVisible(false);
+            delete defsShape;
         }
     } else if (b.tagName() == "linearGradient" || b.tagName() == "radialGradient") {
     } else if (b.tagName() == "pattern") {
@@ -1311,6 +1461,8 @@ QList<KoShape*> SvgParser::parseSingleElement(const KoXmlElement &b)
         parseClipMask(b);
     } else if (b.tagName() == "marker") {
         parseMarker(b);
+    } else if (b.tagName() == "symbol") {
+        parseSymbol(b);
     } else if (b.tagName() == "style") {
         m_context.addStyleSheet(b);
     } else if (b.tagName() == "rect" ||
@@ -1326,7 +1478,10 @@ QList<KoShape*> SvgParser::parseSingleElement(const KoXmlElement &b)
         if (shape)
             shapes.append(shape);
     } else if (b.tagName() == "use") {
-        shapes += parseUse(b);
+        KoShape* s = parseUse(b, deferredUseStore);
+        if (s) {
+            shapes += s;
+        }
     } else if (b.tagName() == "color-profile") {
         m_context.parseProfile(b);
     } else {
@@ -1505,7 +1660,7 @@ KoShape * SvgParser::createShapeFromElement(const KoXmlElement &element, SvgLoad
     return object;
 }
 
-KoShape * SvgParser::createShape(const QString &shapeID)
+KoShape *SvgParser::createShape(const QString &shapeID)
 {
     KoShapeFactoryBase *factory = KoShapeRegistry::instance()->get(shapeID);
     if (!factory) {
@@ -1521,7 +1676,7 @@ KoShape * SvgParser::createShape(const QString &shapeID)
     if (shape->shapeId().isEmpty())
         shape->setShapeId(factory->id());
 
-    // reset tranformation that might come from the default shape
+    // reset transformation that might come from the default shape
     shape->setTransformation(QTransform());
 
     // reset border

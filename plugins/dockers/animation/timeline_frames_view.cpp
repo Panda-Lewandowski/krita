@@ -123,6 +123,7 @@ struct TimelineFramesView::Private
 
     KisCustomModifiersCatcher *modifiersCatcher;
     QPoint lastPressedPosition;
+    Qt::KeyboardModifiers lastPressedModifier;
     KisSignalCompressor selectionChangedCompressor;
 
     QStyleOptionViewItem viewOptionsV4() const;
@@ -181,13 +182,6 @@ TimelineFramesView::TimelineFramesView(QWidget *parent)
     m_d->layerEditingMenu->addAction(KisAnimationUtils::newLayerActionName, this, SLOT(slotAddNewLayer()));
     m_d->existingLayersMenu = m_d->layerEditingMenu->addMenu(KisAnimationUtils::addExistingLayerActionName);
     m_d->layerEditingMenu->addSeparator();
-
-    m_d->showHideLayerAction = new KisAction(KisAnimationUtils::showLayerActionName, this);
-    m_d->showHideLayerAction->setActivationFlags(KisAction::ACTIVE_LAYER);
-    connect(m_d->showHideLayerAction, SIGNAL(triggered()), SLOT(slotHideLayerFromTimeline()));
-    m_d->showHideLayerAction->setCheckable(true);
-    m_d->globalActions.insert("show_in_timeline", m_d->showHideLayerAction);
-    m_d->layerEditingMenu->addAction(m_d->showHideLayerAction);
 
     m_d->layerEditingMenu->addAction(KisAnimationUtils::removeLayerActionName, this, SLOT(slotRemoveLayer()));
 
@@ -289,6 +283,12 @@ TimelineFramesView::~TimelineFramesView()
 QMap<QString, KisAction*> TimelineFramesView::globalActions() const
 {
     return m_d->globalActions;
+}
+
+void TimelineFramesView::setShowInTimeline(KisAction* action)
+{
+    m_d->showHideLayerAction = action;
+    m_d->layerEditingMenu->addAction(m_d->showHideLayerAction);
 }
 
 void resizeToMinimalSize(QAbstractButton *w, int minimalSize) {
@@ -619,15 +619,12 @@ void TimelineFramesView::slotHeaderDataChanged(Qt::Orientation orientation, int 
         if (newFps != m_d->fps) {
             setFramesPerSecond(newFps);
         }
-    } else /* if (orientation == Qt::Vertical) */ {
-        updateShowInTimeline();
     }
 }
 
 void TimelineFramesView::rowsInserted(const QModelIndex& parent, int start, int end)
 {
     QTableView::rowsInserted(parent, start, end);
-    updateShowInTimeline();
 }
 
 
@@ -732,6 +729,20 @@ void TimelineFramesView::startDrag(Qt::DropActions supportedActions)
             }
         }
     } else {
+
+        /**
+         * Workaround for Qt5's bug: if we start a dragging action right during
+         * Shift-selection, Qt will get crazy. We cannot workaround it easily,
+         * because we would need to fork mouseMoveEvent() for that (where the
+         * decision about drag state is done). So we just abort dragging in that
+         * case.
+         *
+         * BUG:373067
+         */
+        if (m_d->lastPressedModifier & Qt::ShiftModifier) {
+            return;
+        }
+
         /**
          * Workaround for Qt5's bugs:
          *
@@ -916,6 +927,7 @@ void TimelineFramesView::mousePressEvent(QMouseEvent *event)
 
         m_d->lastPressedPosition =
                 QPoint(horizontalOffset(), verticalOffset()) + event->pos();
+        m_d->lastPressedModifier = event->modifiers();
 
         QAbstractItemView::mousePressEvent(event);
     }
@@ -1000,13 +1012,6 @@ void TimelineFramesView::slotLayerContextMenuRequested(const QPoint &globalPos)
     m_d->layerEditingMenu->exec(globalPos);
 }
 
-void TimelineFramesView::updateShowInTimeline()
-{
-    const int row = m_d->model->activeLayerRow();
-    const bool status = m_d->model->headerData(row, Qt::Vertical, TimelineFramesModel::LayerUsedInTimelineRole).toBool();
-    m_d->showHideLayerAction->setChecked(status);
-}
-
 void TimelineFramesView::slotAddNewLayer()
 {
     QModelIndex index = currentIndex();
@@ -1032,13 +1037,6 @@ void TimelineFramesView::slotRemoveLayer()
     if (!index.isValid()) return;
 
     model()->removeRow(index.row());
-}
-
-void TimelineFramesView::slotHideLayerFromTimeline()
-{
-    const int row = m_d->model->activeLayerRow();
-    const bool status = m_d->model->headerData(row, Qt::Vertical, TimelineFramesModel::LayerUsedInTimelineRole).toBool();
-    m_d->model->setHeaderData(row, Qt::Vertical, !status, TimelineFramesModel::LayerUsedInTimelineRole);
 }
 
 void TimelineFramesView::slotNewFrame()

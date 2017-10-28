@@ -17,6 +17,9 @@ public Q_SLOTS:
     QList<Document *> documents() const /Factory/;
     QStringList filters() const;
     Filter * filter(const QString &name) const /Factory/;
+    QStringList colorModels() const;
+    QStringList colorDepths(const QString &colorModel) const;
+    QStringList filterStrategies() const;
     QStringList profiles(const QString &colorModel, const QString &ColorDepth) const;
     bool addProfile(const QString &profilePath);
     Notifier * notifier() const;
@@ -25,10 +28,11 @@ public Q_SLOTS:
     Window * activeWindow() const /Factory/;
     QList<Window *> windows() const /Factory/;
     QMap<QString, Resource *> resources(const QString &type) const /Factory/;
+    QStringList recentDocuments() const;
     Document * createDocument(int width, int height, const QString &name, const QString &colorModel, const QString &colorDepth, const QString &profile)  /Factory/;
     Document * openDocument(const QString &filename)  /Factory/;
     Window * openWindow();
-    Action * createAction(const QString & text);
+    Action * createAction(const QString &id, const QString & text);
 
     void addExtension(Extension* _extension /GetWrapper/);
 %MethodCode

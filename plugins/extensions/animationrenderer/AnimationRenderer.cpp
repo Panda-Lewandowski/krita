@@ -25,19 +25,20 @@
 
 #include <kis_image.h>
 #include <KisViewManager.h>
+#include <KoUpdater.h>
 #include <kis_node_manager.h>
 #include <kis_image_manager.h>
 #include <kis_action.h>
 #include <kis_image_animation_interface.h>
 #include <kis_properties_configuration.h>
 #include <kis_config.h>
-#include <kis_animation_exporter.h>
 #include <KisDocument.h>
 #include <KisMimeDatabase.h>
 #include <kis_time_range.h>
 #include <KisImportExportManager.h>
 
 #include "DlgAnimationRenderer.h"
+#include <dialogs/KisAsyncAnimationFramesSaveDialog.h>
 
 
 K_PLUGIN_FACTORY_WITH_JSON(AnimaterionRendererFactory, "kritaanimationrenderer.json", registerPlugin<AnimaterionRenderer>();)
@@ -68,8 +69,6 @@ void AnimaterionRenderer::slotRenderAnimation()
     if (!image->animationInterface()->hasAnimation()) return;
 
     KisDocument *doc = m_view->document();
-    doc->setFileProgressProxy();
-    doc->setFileProgressUpdater(i18n("Export frames"));
 
     DlgAnimationRenderer dlgAnimationRenderer(doc, m_view->mainWindow());
 
@@ -101,11 +100,20 @@ void AnimaterionRenderer::slotRenderAnimation()
                 .arg(sequenceConfig->getString("basename"))
                 .arg(extension);
 
-        KisAnimationExportSaver exporter(doc, baseFileName, sequenceConfig->getInt("first_frame"), sequenceConfig->getInt("last_frame"), sequenceConfig->getInt("sequence_start"));
-        bool success = exporter.exportAnimation(dlgAnimationRenderer.getFrameExportConfiguration()) == KisImportExportFilter::OK;
+
+        const bool batchMode = false; // TODO: fetch correctly!
+        KisAsyncAnimationFramesSaveDialog exporter(doc->image(),
+                                                   KisTimeRange::fromTime(sequenceConfig->getInt("first_frame"), sequenceConfig->getInt("last_frame")),
+                                                   baseFileName,
+                                                   sequenceConfig->getInt("sequence_start"),
+                                                   dlgAnimationRenderer.getFrameExportConfiguration());
+        exporter.setBatchMode(batchMode);
+
+        KisAsyncAnimationFramesSaveDialog::Result result =
+            exporter.regenerateRange(m_view->mainWindow()->viewManager());
 
         // the folder could have been read-only or something else could happen
-        if (success) {
+        if (result == KisAsyncAnimationFramesSaveDialog::RenderComplete) {
             QString savedFilesMask = exporter.savedFilesMask();
 
             KisPropertiesConfigurationSP videoConfig = dlgAnimationRenderer.getVideoConfiguration();
@@ -118,9 +126,24 @@ void AnimaterionRenderer::slotRenderAnimation()
                     encoderConfig->setProperty("savedFilesMask", savedFilesMask);
                 }
 
+                const QString fileName = videoConfig->getString("filename");
+                QString resultFile = fileName;
+                KIS_SAFE_ASSERT_RECOVER_NOOP(QFileInfo(resultFile).isAbsolute())
+
+                {
+                    const QFileInfo info(resultFile);
+                    QDir dir(info.absolutePath());
+
+                    if (!dir.exists()) {
+                        dir.mkpath(info.absolutePath());
+                    }
+                    KIS_SAFE_ASSERT_RECOVER_NOOP(dir.exists());
+                }
+
                 QSharedPointer<KisImportExportFilter> encoder = dlgAnimationRenderer.encoderFilter();
                 encoder->setMimeType(mimetype.toLatin1());
-                QFile fi(videoConfig->getString("filename"));
+                QFile fi(resultFile);
+
                 KisImportExportFilter::ConversionStatus res;
                 if (!fi.open(QIODevice::WriteOnly)) {
                     qWarning() << "Could not open" << fi.fileName() << "for writing!";
@@ -142,12 +165,10 @@ void AnimaterionRenderer::slotRenderAnimation()
                     }
                 }
             }
+        } else if (result == KisAsyncAnimationFramesSaveDialog::RenderFailed) {
+            m_view->mainWindow()->viewManager()->showFloatingMessage(i18n("Failed to render animation frames!"), QIcon());
         }
     }
-
-    doc->clearFileProgressUpdater();
-    doc->clearFileProgressProxy();
-
 }
 
 void AnimaterionRenderer::slotRenderSequenceAgain()
@@ -158,23 +179,25 @@ void AnimaterionRenderer::slotRenderSequenceAgain()
     if (!image->animationInterface()->hasAnimation()) return;
 
     KisDocument *doc = m_view->document();
-    doc->setFileProgressProxy();    doc->setFileProgressUpdater(i18n("Export frames"));
 
     KisConfig kisConfig;
-    KisPropertiesConfigurationSP cfg = new KisPropertiesConfiguration();
-    cfg->fromXML(kisConfig.exportConfiguration("IMAGESEQUENCE"));
-    QString mimetype = cfg->getString("mimetype");
+    KisPropertiesConfigurationSP sequenceConfig = new KisPropertiesConfiguration();
+    sequenceConfig->fromXML(kisConfig.exportConfiguration("IMAGESEQUENCE"));
+    QString mimetype = sequenceConfig->getString("mimetype");
     QString extension = KisMimeDatabase::suffixesForMimeType(mimetype).first();
-    QString baseFileName = QString("%1/%2.%3").arg(cfg->getString("directory"))
-            .arg(cfg->getString("basename"))
+    QString baseFileName = QString("%1/%2.%3").arg(sequenceConfig->getString("directory"))
+            .arg(sequenceConfig->getString("basename"))
             .arg(extension);
-    KisAnimationExportSaver exporter(doc, baseFileName, cfg->getInt("first_frame"), cfg->getInt("last_frame"), cfg->getInt("sequence_start"));
-    bool success = exporter.exportAnimation();
-    Q_ASSERT(success);
 
-    doc->clearFileProgressUpdater();
-    doc->clearFileProgressProxy();
-
+    const bool batchMode = false; // TODO: fetch correctly!
+    KisAsyncAnimationFramesSaveDialog exporter(doc->image(),
+                                               KisTimeRange::fromTime(sequenceConfig->getInt("first_frame"), sequenceConfig->getInt("last_frame")),
+                                               baseFileName,
+                                               sequenceConfig->getInt("sequence_start"),
+                                               0);
+    exporter.setBatchMode(batchMode);
+    bool success = exporter.regenerateRange(0) == KisAsyncAnimationFramesSaveDialog::RenderComplete;
+    KIS_SAFE_ASSERT_RECOVER_NOOP(success);
 }
 
 #include "AnimationRenderer.moc"

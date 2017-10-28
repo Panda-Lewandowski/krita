@@ -47,7 +47,7 @@ class PAINTOP_EXPORT KisAutoBrushWidget : public KisWdgAutoBrush
 public:
 
     KisAutoBrushWidget(QWidget *parent, const char* name);
-    ~KisAutoBrushWidget();
+    ~KisAutoBrushWidget() override;
 
     void activate();
 
@@ -58,6 +58,8 @@ public:
     void setBrushSize(qreal dxPixels, qreal dyPixels);
     QSizeF brushSize() const;
 
+    void drawBrushPreviewArea();
+
 private Q_SLOTS:
     void paramChanged();
     void setStackedWidget(int);
@@ -67,7 +69,7 @@ Q_SIGNALS:
     void sigBrushChanged();
 
 protected:
-    virtual void resizeEvent(QResizeEvent *);
+    void resizeEvent(QResizeEvent *) override;
 
 private:
     QImage m_brush;

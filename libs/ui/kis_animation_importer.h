@@ -31,9 +31,9 @@ class KRITAUI_EXPORT KisAnimationImporter : public QObject
     Q_OBJECT
 
 public:
-    KisAnimationImporter(KisImageSP image);
+    KisAnimationImporter(KisImageSP image, KoUpdaterPtr updater = 0);
     KisAnimationImporter(KisDocument* document);
-    ~KisAnimationImporter();
+    ~KisAnimationImporter() override;
 
     KisImportExportFilter::ConversionStatus import(QStringList files, int firstFrame, int step);
 

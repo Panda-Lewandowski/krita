@@ -30,7 +30,6 @@
 #include "kis_selection_tool_config_widget_helper.h"
 #include <kis_icon.h>
 
-
 class __KisToolSelectPolygonalLocal : public KisToolPolylineBase
 {
     Q_OBJECT
@@ -41,7 +40,7 @@ protected:
     virtual SelectionAction selectionAction() const = 0;
     virtual bool antiAliasSelection() const = 0;
 private:
-    void finishPolyline(const QVector<QPointF> &points);
+    void finishPolyline(const QVector<QPointF> &points) override;
 private:
 };
 
@@ -50,6 +49,8 @@ class KisToolSelectPolygonal : public KisToolSelectBase<__KisToolSelectPolygonal
     Q_OBJECT
 public:
     KisToolSelectPolygonal(KoCanvasBase* canvas);
+    QMenu* popupActionsMenu() override;
+
 public Q_SLOTS:
     void setSelectionAction(int);
 };
@@ -69,9 +70,9 @@ public:
         setActivationShapeId(KRITA_TOOL_ACTIVATION_ID);
     }
 
-    virtual ~KisToolSelectPolygonalFactory() {}
+    ~KisToolSelectPolygonalFactory() override {}
 
-    virtual KoToolBase * createTool(KoCanvasBase *canvas) {
+    KoToolBase * createTool(KoCanvasBase *canvas) override {
         return new KisToolSelectPolygonal(canvas);
     }
 };

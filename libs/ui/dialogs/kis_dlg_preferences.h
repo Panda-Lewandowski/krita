@@ -117,7 +117,7 @@ class ShortcutSettingsTab : public QWidget
 public:
 
     ShortcutSettingsTab(QWidget *parent = 0, const char *name = 0);
-    ~ShortcutSettingsTab();
+    ~ShortcutSettingsTab() override;
 
 public:
     void setDefault();
@@ -218,7 +218,7 @@ class PerformanceTab : public WdgPerformanceSettings
 public:
     PerformanceTab(QWidget *parent = 0, const char *name = 0);
 
-    ~PerformanceTab();
+    ~PerformanceTab() override;
 
     void load(bool requestDefault);
     void save();
@@ -227,11 +227,18 @@ private Q_SLOTS:
 
     void selectSwapDir();
 
+    void slotThreadsLimitChanged(int value);
+    void slotFrameClonesLimitChanged(int value);
+    void slotFpsLimitChanged(int value);
+
 private:
     int realTilesRAM();
 
 private:
     QVector<SliderAndSpinBoxSync*> m_syncs;
+    int m_lastUsedThreadsLimit;
+    int m_lastUsedClonesLimit;
+    int m_lastUsedFpsLimit;
 };
 
 //=======================
@@ -310,7 +317,7 @@ public:
 protected:
 
     KisDlgPreferences(QWidget *parent = 0, const char *name = 0);
-    ~KisDlgPreferences();
+    ~KisDlgPreferences() override;
 
 protected:
 

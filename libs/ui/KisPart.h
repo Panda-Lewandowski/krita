@@ -2,7 +2,7 @@
    Copyright (C) 1998, 1999 Torben Weis <weis@kde.org>
    Copyright (C) 2000-2005 David Faure  <faure@kde.org>
    Copyright (C) 2007 Thorsten Zachmann <zachmann@kde.org>
-   Copyright (C) 2010 Boudewijn Rempt   <boud@kogmbh.com>
+   Copyright (C) 2010 Boudewijn Rempt   <boud@valdyas.org>
    Copyright (C) 2015 Michael Abrahams  <miabraha@gmail.com>
 
    This library is free software; you can redistribute it and/or
@@ -77,7 +77,7 @@ public:
      * The destructor does not delete any attached KisView objects and it does not
      * delete the attached widget as returned by widget().
      */
-    ~KisPart();
+    ~KisPart() override;
 
     // ----------------- Document management -----------------
 
@@ -178,8 +178,6 @@ public Q_SLOTS:
     void startCustomDocument(KisDocument *doc);
 
 private Q_SLOTS:
-
-    void viewDestroyed();
 
     void updateIdleWatcherConnections();
 

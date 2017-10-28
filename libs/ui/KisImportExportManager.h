@@ -32,6 +32,9 @@
 class KisDocument;
 class KoProgressUpdater;
 
+template <class T>
+class QFuture;
+
 /**
  *  @brief The class managing all the filters.
  *
@@ -61,7 +64,7 @@ public:
 
 public:
 
-    virtual ~KisImportExportManager();
+    ~KisImportExportManager() override;
 
     /**
      * Imports the specified document and returns the resultant filename
@@ -83,7 +86,9 @@ public:
      * and when the method returns @p mimeType contains this mimetype.
      * Oh, well, export is a C++ keyword ;)
      */
-    KisImportExportFilter::ConversionStatus exportDocument(const QString &location, const QString& realLocation, QByteArray &mimeType, bool showWarnings = true, KisPropertiesConfigurationSP exportConfiguration = 0);
+    KisImportExportFilter::ConversionStatus exportDocument(const QString &location, const QString& realLocation, const QByteArray &mimeType, bool showWarnings = true, KisPropertiesConfigurationSP exportConfiguration = 0);
+
+    QFuture<KisImportExportFilter::ConversionStatus> exportDocumentAsyc(const QString &location, const QString& realLocation, const QByteArray &mimeType, bool showWarnings = true, KisPropertiesConfigurationSP exportConfiguration = 0);
 
     ///@name Static API
     //@{
@@ -117,7 +122,7 @@ public:
      */
     bool batchMode(void) const;
 
-    void setProgresUpdater(KoProgressUpdater *updater);
+    void setUpdater(KoUpdaterPtr updater);
 
     static QString askForAudioFileName(const QString &defaultDir, QWidget *parent);
 
@@ -127,7 +132,17 @@ private Q_SLOTS:
 
 private:
 
-    KisImportExportFilter::ConversionStatus convert(Direction direction, const QString &location, const QString& realLocation, const QString &mimeType, bool showWarnings, KisPropertiesConfigurationSP exportConfiguration);
+    struct ConversionResult;
+    ConversionResult convert(Direction direction, const QString &location, const QString& realLocation, const QString &mimeType, bool showWarnings, KisPropertiesConfigurationSP exportConfiguration, bool isAsync);
+
+
+    void fillStaticExportConfigurationProperties(KisPropertiesConfigurationSP exportConfiguration);
+    bool askUserAboutExportConfiguration(QSharedPointer<KisImportExportFilter> filter, KisPropertiesConfigurationSP exportConfiguration, const QByteArray &from, const QByteArray &to, bool batchMode, const bool showWarnings, bool *alsoAsKra);
+
+    KisImportExportFilter::ConversionStatus doImport(const QString &location, QSharedPointer<KisImportExportFilter> filter);
+
+    KisImportExportFilter::ConversionStatus doExport(const QString &location, QSharedPointer<KisImportExportFilter> filter, KisPropertiesConfigurationSP exportConfiguration, bool alsoAsKra);
+    KisImportExportFilter::ConversionStatus doExportImpl(const QString &location, QSharedPointer<KisImportExportFilter> filter, KisPropertiesConfigurationSP exportConfiguration);
 
     // Private API
     KisImportExportManager(const KisImportExportManager& rhs);

@@ -48,10 +48,15 @@ struct OptiDiv {
 
     static ALWAYS_INLINE Vc::float_v divVector(Vc::float_v::AsArg divident, Vc::float_v::AsArg  divisor) {
 #ifdef __SSE__
+<<<<<<< HEAD
 
         return divident * Vc::reciprocal(divisor);
 #else
 
+=======
+        return divident * Vc::reciprocal(divisor);
+#else
+>>>>>>> c6473821e095b6b4462259ab119265423de80c8d
         return divident / divisor;
 #endif
 
@@ -132,8 +137,13 @@ struct OverCompositor32 {
              */
             new_alpha = dst_alpha + (uint8Max - dst_alpha) * src_alpha * uint8MaxRec1;
 
+<<<<<<< HEAD
             //src_blend = src_alpha / new_alpha;
            // src_blend = src_alpha * Vc::reciprocal(new_alpha);
+=======
+            // Optimized version of:
+            //     src_blend = src_alpha / new_alpha;
+>>>>>>> c6473821e095b6b4462259ab119265423de80c8d
             src_blend = OptiDiv<_impl>::divVector(src_alpha, new_alpha);
 
         }
@@ -194,8 +204,14 @@ struct OverCompositor32 {
                 }
             } else {
                 dstAlpha += (uint8Max - dstAlpha) * srcAlpha * uint8Rec1;
+<<<<<<< HEAD
                 //srcBlendNorm = srcAlpha * (1.0 / dstAlpha);
                srcBlendNorm = OptiDiv<_impl>::divScalar(srcAlpha, dstAlpha);
+=======
+                // Optimized version of:
+                //     srcBlendNorm = srcAlpha / dstAlpha);
+                srcBlendNorm = OptiDiv<_impl>::divScalar(srcAlpha, dstAlpha);
+>>>>>>> c6473821e095b6b4462259ab119265423de80c8d
 
             }
 

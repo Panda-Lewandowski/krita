@@ -44,8 +44,8 @@ public:
      * @param parent the parent if it's in a QObject hierarchy
      */
     Action(const QString &name, QAction *action, QObject *parent = 0);
-    virtual ~Action();
-    
+    ~Action() override;
+
     bool operator==(const Action &other) const;
     bool operator!=(const Action &other) const;
 
@@ -59,7 +59,7 @@ public Q_SLOTS:
     /**
      * set the user-visible text of the action to @param text.
      */
-    void settext(QString text);
+    void setText(QString text);
 
     /**
      * @return the internal name of the action.
@@ -127,9 +127,26 @@ public Q_SLOTS:
     void setToolTip(QString tooltip);
 
     /**
+     * @return the tooltip text
+     */
+    QString tooltip() const;
+
+    /**
      * Trigger this action
      */
     void trigger();
+
+    /**
+     * @brief setMenu determines in which menu the action will be placed. The default is tools/scripts
+     * @param menu the menu where the action should go, / -separated to drill down the hierarchy
+     */
+    void setMenu(const QString menu);
+
+    /**
+     * @return the menu in which this action is to be placed.
+     */
+    QString menu() const;
+
 
 Q_SIGNALS:
 

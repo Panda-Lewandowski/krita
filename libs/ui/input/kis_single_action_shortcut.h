@@ -35,12 +35,13 @@ public:
         WheelDown, ///< Mouse wheel moves down.
         WheelLeft, ///< Mouse wheel moves left.
         WheelRight, ///< Mouse wheel moves right.
+        WheelTrackpad, ///< A pan movement on a trackpad.
     };
 
     KisSingleActionShortcut(KisAbstractInputAction *action, int index);
-    ~KisSingleActionShortcut();
+    ~KisSingleActionShortcut() override;
 
-    int priority() const;
+    int priority() const override;
 
     void setKey(const QSet<Qt::Key> &modifiers, Qt::Key key);
     void setWheel(const QSet<Qt::Key> &modifiers, WheelAction wheelAction);

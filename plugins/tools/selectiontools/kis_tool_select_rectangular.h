@@ -43,7 +43,7 @@ protected:
     virtual SelectionAction selectionAction() const = 0;
 
 private:
-    void finishRect(const QRectF& rect);
+    void finishRect(const QRectF& rect) override;
 };
 
 
@@ -52,6 +52,8 @@ class KisToolSelectRectangular : public KisToolSelectBase<__KisToolSelectRectang
     Q_OBJECT
 public:
     KisToolSelectRectangular(KoCanvasBase* canvas);
+    QMenu* popupActionsMenu() override;
+
 public Q_SLOTS:
     void setSelectionAction(int);
 };
@@ -71,9 +73,9 @@ public:
         setPriority(0);
     }
 
-    virtual ~KisToolSelectRectangularFactory() {}
+    ~KisToolSelectRectangularFactory() override {}
 
-    virtual KoToolBase * createTool(KoCanvasBase *canvas) {
+    KoToolBase * createTool(KoCanvasBase *canvas) override {
         return new KisToolSelectRectangular(canvas);
     }
 };

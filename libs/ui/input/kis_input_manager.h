@@ -20,11 +20,14 @@
 #define KIS_INPUTMANAGER_H
 
 #include <QObject>
+#include <QPointer>
+
 #include <kritaui_export.h>
+
+#include <kis_tool_proxy.h>
 
 class QPointF;
 class QTouchEvent;
-class KisToolProxy;
 class KisCanvas2;
 /**
  * \brief Central object to manage canvas input.
@@ -56,9 +59,7 @@ public:
     /**
      * Destructor.
      */
-    ~KisInputManager();
-
-
+    ~KisInputManager() override;
 
     void addTrackedCanvas(KisCanvas2 *canvas);
     void removeTrackedCanvas(KisCanvas2 *canvas);
@@ -78,9 +79,19 @@ public:
     /**
      * Event filter method. Overridden from QObject.
      */
-    bool eventFilter(QObject* object, QEvent* event );
+    bool eventFilter(QObject* object, QEvent* event ) override;
 
+    /**
+     * @brief attachPriorityEventFilter
+     * @param filter
+     * @param priority
+     */
     void attachPriorityEventFilter(QObject *filter, int priority = 0);
+
+    /**
+     * @brief detachPriorityEventFilter
+     * @param filter
+     */
     void detachPriorityEventFilter(QObject *filter);
 
     /**
@@ -91,23 +102,10 @@ public:
     /**
      * The tool proxy of the current application.
      */
-    KisToolProxy *toolProxy() const;
-
-    /**
-     * Touch events are special, too.
-     *
-     * \return a touch event if there was one, otherwise 0
-     */
-    QTouchEvent *lastTouchEvent() const;
-
-    /**
-     * Convert a widget position to a document position.
-     */
-    QPointF widgetToDocument(const QPointF &position);
+    QPointer<KisToolProxy> toolProxy() const;
 
 public Q_SLOTS:
     void stopIgnoringEvents();
-    void slotFocusOnEnter(bool value);
 
 private Q_SLOTS:
     void slotAboutToChangeTool();
@@ -116,6 +114,9 @@ private Q_SLOTS:
     void slotCompressedMoveEvent();
 
 private:
+    bool startTouch(bool &retval);
+    void endTouch();
+
     bool eventFilterImpl(QEvent * event);
     template <class Event>
         bool compressMoveEventCommon(Event *event);

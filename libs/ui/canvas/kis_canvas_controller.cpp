@@ -101,15 +101,23 @@ KisCanvasController::~KisCanvasController()
 
 void KisCanvasController::setCanvas(KoCanvasBase *canvas)
 {
-    KisCanvas2 *kritaCanvas = dynamic_cast<KisCanvas2*>(canvas);
-    Q_ASSERT(kritaCanvas);
+    if (canvas) {
+        KisCanvas2 *kritaCanvas = dynamic_cast<KisCanvas2*>(canvas);
+        KIS_SAFE_ASSERT_RECOVER_RETURN(kritaCanvas);
 
-    m_d->coordinatesConverter =
-        const_cast<KisCoordinatesConverter*>(kritaCanvas->coordinatesConverter());
+        m_d->coordinatesConverter =
+            const_cast<KisCoordinatesConverter*>(kritaCanvas->coordinatesConverter());
+
+        m_d->paintOpTransformationConnector =
+            new KisPaintopTransformationConnector(kritaCanvas, this);
+    } else {
+        m_d->coordinatesConverter = 0;
+
+        delete m_d->paintOpTransformationConnector;
+        m_d->paintOpTransformationConnector = 0;
+    }
+
     KoCanvasControllerWidget::setCanvas(canvas);
-
-    m_d->paintOpTransformationConnector =
-        new KisPaintopTransformationConnector(kritaCanvas, this);
 }
 
 void KisCanvasController::changeCanvasWidget(QWidget *widget)
@@ -162,6 +170,8 @@ bool KisCanvasController::eventFilter(QObject *watched, QEvent *event)
     } else if (event->type() == QEvent::TabletMove) {
         QTabletEvent *tevent = static_cast<QTabletEvent*>(event);
         m_d->mousePositionCompressor->start(tevent->pos());
+    } else if (event->type() == QEvent::FocusIn) {
+        m_d->view->syncLastActiveNodeToDocument();
     }
 
     return false;
@@ -204,13 +214,18 @@ void KisCanvasController::Private::showRotationValueOnCanvas()
             QIcon(), 500, KisFloatingMessage::Low, Qt::AlignCenter);
 }
 
-void KisCanvasController::rotateCanvas(qreal angle)
+void KisCanvasController::rotateCanvas(qreal angle, const QPointF &center)
 {
-    QPoint newOffset = m_d->coordinatesConverter->rotate(m_d->coordinatesConverter->widgetCenterPoint(), angle);
+    QPoint newOffset = m_d->coordinatesConverter->rotate(center, angle);
     m_d->updateDocumentSizeAfterTransform();
     setScrollBarValue(newOffset);
     m_d->paintOpTransformationConnector->notifyTransformationChanged();
     m_d->showRotationValueOnCanvas();
+}
+
+void KisCanvasController::rotateCanvas(qreal angle)
+{
+    rotateCanvas(angle, m_d->coordinatesConverter->widgetCenterPoint());
 }
 
 void KisCanvasController::rotateCanvasRight15()

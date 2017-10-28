@@ -61,6 +61,12 @@ if (APPLE)
     add_definitions(-mmacosx-version-min=10.9 -Wno-macro-redefined -Wno-deprecated-register)
 endif()
 
+if (LINUX)
+    if (CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9 AND NOT WINDOWS)
+        add_definitions(-Werror=delete-incomplete)
+    endif()
+endif()
+
  ######################
 #######################
 ## Constants defines ##
@@ -69,10 +75,10 @@ endif()
 
 # define common versions of Krita applications, used to generate kritaversion.h
 # update these version for every release:
-set(KRITA_VERSION_STRING "3.1.88")
-set(KRITA_STABLE_VERSION_MAJOR 3) # 3 for 3.x, 4 for 4.x, etc.
-set(KRITA_STABLE_VERSION_MINOR 1) # 0 for 3.0, 1 for 3.1, etc.
-set(KRITA_VERSION_RELEASE 88)     # 88 for pre-alpha, 89 for Alpha, increase for next test releases, set 0 for first Stable, etc.
+set(KRITA_VERSION_STRING "4.0.0-pre-alpha")
+set(KRITA_STABLE_VERSION_MAJOR 4) # 3 for 3.x, 4 for 4.x, etc.
+set(KRITA_STABLE_VERSION_MINOR 0) # 0 for 3.0, 1 for 3.1, etc.
+set(KRITA_VERSION_RELEASE 0)     # 88 for pre-alpha, 89 for Alpha, increase for next test releases, set 0 for first Stable, etc.
 set(KRITA_ALPHA 1) # uncomment only for Alpha
 #set(KRITA_BETA 1) # uncomment only for Beta
 #set(KRITA_RC 1) # uncomment only for RC
@@ -87,12 +93,12 @@ message(STATUS "Krita version: ${KRITA_VERSION_STRING}")
 # Define the generic version of the Krita libraries here
 # This makes it easy to advance it when the next Krita release comes.
 # 14 was the last GENERIC_KRITA_LIB_VERSION_MAJOR of the previous Krita series
-# (2.x) so we're starting with 15 in 3.x series.
-if(KRITA_STABLE_VERSION_MAJOR EQUAL 3)
-    math(EXPR GENERIC_KRITA_LIB_VERSION_MAJOR "${KRITA_STABLE_VERSION_MINOR} + 15")
+# (2.x) so we're starting with 15 in 3.x series, 16 in 4.x series
+if(KRITA_STABLE_VERSION_MAJOR EQUAL 4)
+    math(EXPR GENERIC_KRITA_LIB_VERSION_MAJOR "${KRITA_STABLE_VERSION_MINOR} + 16")
 else()
-    # let's make sure we won't forget to update the "15"
-    message(FATAL_ERROR "Reminder: please update offset == 15 used to compute GENERIC_KRITA_LIB_VERSION_MAJOR to something bigger")
+    # let's make sure we won't forget to update the "16"
+    message(FATAL_ERROR "Reminder: please update offset == 16 used to compute GENERIC_KRITA_LIB_VERSION_MAJOR to something bigger")
 endif()
 set(GENERIC_KRITA_LIB_VERSION "${GENERIC_KRITA_LIB_VERSION_MAJOR}.0.0")
 set(GENERIC_KRITA_LIB_SOVERSION "${GENERIC_KRITA_LIB_VERSION_MAJOR}")
@@ -179,13 +185,62 @@ add_feature_info("Enable Broken Tests" KRITA_ENABLE_BROKEN_TESTS "Runs broken te
 
 include(MacroJPEG)
 
+###########################################################
+## Look for Python3. It is also searched by KF5,         ##
+## so we should request the correct  version in advance  ##
+###########################################################
+
+function(TestCompileLinkPythonLibs OUTPUT_VARNAME)
+	include(CheckCXXSourceCompiles)
+	set(CMAKE_REQUIRED_INCLUDES ${PYTHON_INCLUDE_PATH})
+	set(CMAKE_REQUIRED_LIBRARIES ${PYTHON_LIBRARIES})
+    if (MINGW)
+        set(CMAKE_REQUIRED_DEFINITIONS -D_hypot=hypot)
+    endif (MINGW)
+	unset(${OUTPUT_VARNAME} CACHE)
+	CHECK_CXX_SOURCE_COMPILES("
+#include <Python.h>
+int main(int argc, char *argv[]) {
+    Py_InitializeEx(0);
+}" ${OUTPUT_VARNAME})
+endfunction()
+
+if(MINGW)
+    # First get the Python library path to make sure the selected Python
+    # can be used for Building, then try to get the Python interpreter again
+    find_package(PythonInterp 3.6 EXACT)
+    find_package(PythonLibs 3.6 EXACT)
+    if (PYTHONLIBS_FOUND)
+        # Use the same Python as the library
+        get_filename_component(PYTHON_DIR ${PYTHON_LIBRARIES} DIRECTORY)
+        get_filename_component(PYTHON_DIR ${PYTHON_DIR} DIRECTORY)
+        set(PYTHON_EXECUTABLE "${PYTHON_DIR}/python.exe")
+        message(STATUS "Set Python executable: ${PYTHON_EXECUTABLE}")
+        find_package(PythonInterp 3.6 EXACT)
+        if (PYTHONINTERP_FOUND)
+            find_package(PythonLibrary 3.6)
+        else (PYTHONINTERP_FOUND)
+            # This shouldn't happen on Windows...
+            message(FATAL_ERROR "Python library found but python.exe not found!")
+        endif (PYTHONINTERP_FOUND)
+		TestCompileLinkPythonLibs(CAN_USE_PYTHON_LIBS)
+		if (NOT CAN_USE_PYTHON_LIBS)
+			message(WARNING "Compiling with Python library failed, please check whether the architecture is correct. Python will be disabled.")
+            unset(PYTHONLIBS_FOUND CACHE)
+		endif (NOT CAN_USE_PYTHON_LIBS)
+    endif (PYTHONLIBS_FOUND)
+else(MINGW)
+    find_package(PythonInterp 3.0)
+    find_package(PythonLibrary 3.0)
+endif(MINGW)
+
  ########################
 #########################
 ## Look for KDE and Qt ##
 #########################
 ########################
 
-find_package(ECM 1.7.0 REQUIRED NOMODULE)
+find_package(ECM 5.19 REQUIRED NOMODULE)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR})
 include(ECMOptionalAddSubdirectory)
 include(ECMAddAppIcon)
@@ -260,6 +315,23 @@ set_package_properties(Qt5Multimedia PROPERTIES
 macro_bool_to_01(Qt5Multimedia_FOUND HAVE_QT_MULTIMEDIA)
 configure_file(config-qtmultimedia.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-qtmultimedia.h )
 
+find_package(Qt5Quick ${MIN_QT_VERSION})
+set_package_properties(Qt5Quick PROPERTIES
+        DESCRIPTION "QtQuick"
+        URL "http://www.qt.io/"
+        TYPE OPTIONAL
+        PURPOSE "Optionally used for the touch gui for Krita")
+
+macro_bool_to_01(Qt5Quick_FOUND HAVE_QT_QUICK)
+
+find_package(Qt5QuickWidgets ${MIN_QT_VERSION})
+set_package_properties(Qt5QuickWidgets PROPERTIES
+        DESCRIPTION "QtQuickWidgets"
+        URL "http://www.qt.io/"
+        TYPE OPTIONAL
+        PURPOSE "Optionally used for the touch gui for Krita")
+
+
 if (NOT WIN32 AND NOT APPLE)
 
     find_package(Qt5 ${MIN_QT_VERSION} REQUIRED X11Extras)
@@ -280,7 +352,7 @@ if (NOT WIN32 AND NOT APPLE)
         TYPE OPTIONAL
         PURPOSE "Optionally used for recent document handling")
 
-    find_package(KF5Crash ${MIN_FRAMEWORKS_VERSION}) 
+    find_package(KF5Crash ${MIN_FRAMEWORKS_VERSION})
     macro_bool_to_01(KF5Crash_FOUND HAVE_KCRASH)
     set_package_properties(KF5Crash PROPERTIES
         DESCRIPTION "KDE's Crash Handler"
@@ -380,7 +452,7 @@ if (APPLE)
 endif()
 
 add_definitions(-DBOOST_ALL_NO_LIB)
-find_package(Boost REQUIRED COMPONENTS system) # for pigment and stage
+find_package(Boost 1.55 REQUIRED COMPONENTS system) # for pigment and stage
 include_directories(${Boost_INCLUDE_DIRS})
 ##
 ## Test for GNU Scientific Library
@@ -475,7 +547,7 @@ endif()
 ##
 ## Test for eigen3
 ##
-find_package(Eigen3 REQUIRED "3.0")
+find_package(Eigen3 3.0 REQUIRED)
 set_package_properties(Eigen3 PROPERTIES
     DESCRIPTION "C++ template library for linear algebra"
     URL "http://eigen.tuxfamily.org"
@@ -484,8 +556,7 @@ set_package_properties(Eigen3 PROPERTIES
 ##
 ## Test for exiv2
 ##
-set(EXIV2_MIN_VERSION "0.16")
-find_package(Exiv2 REQUIRED)
+find_package(Exiv2 0.16 REQUIRED)
 set_package_properties(Exiv2 PROPERTIES
     DESCRIPTION "Image metadata library and tools"
     URL "http://www.exiv2.org"
@@ -494,7 +565,7 @@ set_package_properties(Exiv2 PROPERTIES
 ##
 ## Test for lcms
 ##
-find_package(LCMS2 REQUIRED "2.4")
+find_package(LCMS2 2.4 REQUIRED)
 set_package_properties(LCMS2 PROPERTIES
     DESCRIPTION "LittleCMS Color management engine"
     URL "http://www.littlecms.com"
@@ -574,41 +645,12 @@ test_big_endian(CMAKE_WORDS_BIGENDIAN)
 ##
 ## Test for qt-poppler
 ##
-find_package(Poppler)
+find_package(Poppler COMPONENTS Qt5)
 set_package_properties(Poppler PROPERTIES
     DESCRIPTION "A PDF rendering library"
     URL "http://poppler.freedesktop.org"
     TYPE OPTIONAL
     PURPOSE "Required by the Krita PDF filter.")
-
-##
-## Test for pthreads (for G'Mic)
-##
-find_package(Threads)
-set_package_properties(Threads PROPERTIES
-    DESCRIPTION "PThreads - A low-level threading library"
-    TYPE OPTIONAL
-    PURPOSE "Optionally used by the G'Mic plugin")
-
-##
-## Test for OpenMP (for G'Mic)
-##
-find_package(OpenMP)
-set_package_properties(OpenMP PROPERTIES
-    DESCRIPTION "A low-level parallel execution library"
-    URL "http://openmp.org/wp/"
-    TYPE OPTIONAL
-    PURPOSE "Optionally used by the G'Mic plugin")
-
-##
-## Test for Curl (for G'Mic)
-##
-find_package(CURL)
-set_package_properties(CURL PROPERTIES
-    DESCRIPTION "A tool to fetch remote data"
-    URL "http://curl.haxx.se/"
-    TYPE OPTIONAL
-    PURPOSE "Optionally used by the G'Mic plugin")
 
  ############################
 #############################
@@ -625,9 +667,9 @@ include(MacroKritaAddBenchmark)
 ####################
 
 # for config.h and <toplevel/foo.h> includes (if any?)
-include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR} 
-                           ${CMAKE_CURRENT_BINARY_DIR} 
-                           ${CMAKE_SOURCE_DIR}/interfaces 
+include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}
+                           ${CMAKE_CURRENT_BINARY_DIR}
+                           ${CMAKE_SOURCE_DIR}/interfaces
 )
 
 add_subdirectory(libs)

@@ -31,6 +31,8 @@
 #include <QGroupBox>
 #include <QRadioButton>
 
+#include "kis_canvas2.h"
+
 
 class KoCanvasBase;
 class MoveToolOptionsWidget;
@@ -43,18 +45,18 @@ class KisToolMove : public KisTool
     Q_PROPERTY(bool moveInProgress READ moveInProgress NOTIFY moveInProgressChanged);
 public:
     KisToolMove(KoCanvasBase * canvas);
-    virtual ~KisToolMove();
+    ~KisToolMove() override;
 
 public Q_SLOTS:
-    virtual void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes);
-    void deactivate();
+    void activate(ToolActivation toolActivation, const QSet<KoShape*> &shapes) override;
+    void deactivate() override;
 
 public Q_SLOTS:
-    void requestStrokeEnd();
-    void requestStrokeCancellation();
+    void requestStrokeEnd() override;
+    void requestStrokeCancellation() override;
 
 protected Q_SLOTS:
-    virtual void resetCursorStyle();
+    void resetCursorStyle() override;
 
 public:
     enum MoveToolMode {
@@ -70,21 +72,22 @@ public:
         Right
     };
 
-    void beginPrimaryAction(KoPointerEvent *event);
-    void continuePrimaryAction(KoPointerEvent *event);
-    void endPrimaryAction(KoPointerEvent *event);
+    void beginPrimaryAction(KoPointerEvent *event) override;
+    void continuePrimaryAction(KoPointerEvent *event) override;
+    void endPrimaryAction(KoPointerEvent *event) override;
 
-    void beginAlternateAction(KoPointerEvent *event, AlternateAction action);
-    void continueAlternateAction(KoPointerEvent *event, AlternateAction action);
-    void endAlternateAction(KoPointerEvent *event, AlternateAction action);
+    void beginAlternateAction(KoPointerEvent *event, AlternateAction action) override;
+    void continueAlternateAction(KoPointerEvent *event, AlternateAction action) override;
+    void endAlternateAction(KoPointerEvent *event, AlternateAction action) override;
 
     void startAction(KoPointerEvent *event, MoveToolMode mode);
     void continueAction(KoPointerEvent *event);
     void endAction(KoPointerEvent *event);
 
-    virtual void paint(QPainter& gc, const KoViewConverter &converter);
+    void paint(QPainter& gc, const KoViewConverter &converter) override;
+    void initHandles(const KisNodeList &nodes);
 
-    virtual QWidget* createOptionWidget();
+    QWidget* createOptionWidget() override;
     void updateUIUnit(int newUnit);
 
     MoveToolMode moveToolMode() const;
@@ -131,6 +134,12 @@ private:
     int m_resolution;
 
     QAction *m_showCoordinatesAction;
+
+    KisCanvas2* m_canvas;
+
+    QPoint m_pos;
+    QRect m_handlesRect;
+    bool m_dragInProgress = false;
 };
 
 
@@ -148,9 +157,9 @@ public:
         setShortcut(QKeySequence( Qt::Key_T));
     }
 
-    virtual ~KisToolMoveFactory() {}
+    ~KisToolMoveFactory() override {}
 
-    virtual KoToolBase * createTool(KoCanvasBase *canvas) {
+    KoToolBase * createTool(KoCanvasBase *canvas) override {
         return new KisToolMove(canvas);
     }
 

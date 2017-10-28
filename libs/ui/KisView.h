@@ -73,7 +73,7 @@ public:
      * Creates a new view for the document.
      */
     KisView(KisDocument *document, KoCanvasResourceManager *resourceManager, KActionCollection *actionCollection, QWidget *parent = 0);
-    ~KisView();
+    ~KisView() override;
 
     QAction *undoAction() const;
     QAction *redoAction() const;
@@ -208,13 +208,16 @@ public:
 
     bool canvasIsMirrored() const;
 
+    void syncLastActiveNodeToDocument();
+
 public Q_SLOTS:
 
     /**
      * Display a message in the status bar (calls QStatusBar::message())
      * @todo rename to something more generic
+     * @param value determines autosaving
      */
-    void slotActionStatusText(const QString &text);
+    void slotSavingStatusMessage(const QString &text, int timeout, bool isAutoSaving = false);
 
     /**
      * End of the message in the status bar (calls QStatusBar::clear())
@@ -254,9 +257,9 @@ Q_SIGNALS:
 protected:
 
     // QWidget overrides
-    void dragEnterEvent(QDragEnterEvent * event);
-    void dropEvent(QDropEvent * event);
-    void closeEvent(QCloseEvent *event);
+    void dragEnterEvent(QDragEnterEvent * event) override;
+    void dropEvent(QDropEvent * event) override;
+    void closeEvent(QCloseEvent *event) override;
 
     /**
      * Generate a name for this view.

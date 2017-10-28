@@ -36,10 +36,12 @@ class KisStrokeJob;
 class KRITAIMAGE_EXPORT KisUpdaterContext : public QObject
 {
     Q_OBJECT
+public:
+    static const int useIdealThreadCountTag;
 
 public:
-    KisUpdaterContext(qint32 threadCount = -1);
-    virtual ~KisUpdaterContext();
+    KisUpdaterContext(qint32 threadCount = useIdealThreadCountTag, QObject *parent = 0);
+    ~KisUpdaterContext() override;
 
 
     /**
@@ -117,6 +119,23 @@ public:
      */
     void unlock();
 
+    /**
+     * Set the number of threads available for this updater context
+     * WARNING: one cannot change the number of threads if there is
+     *          at least one job running in the context! So before
+     *          calling this method make sure you do two things:
+     *          1) barrierLock() the update scheduler
+     *          2) lock() the context
+     */
+    void setThreadsLimit(int value);
+
+    /**
+     * Return the number of available threads in the context. Make sure you
+     * lock the context before calling this function!
+     */
+    int threadsLimit() const;
+
+
 Q_SIGNALS:
     void sigContinueUpdate(const QRect& rc);
     void sigDoSomeUsefulWork();
@@ -152,15 +171,15 @@ public:
      * Creates an explicit number of threads
      */
     KisTestableUpdaterContext(qint32 threadCount);
-    ~KisTestableUpdaterContext();
+    ~KisTestableUpdaterContext() override;
 
     /**
      * The only difference - it doesn't start execution
      * of the job
      */
-    void addMergeJob(KisBaseRectsWalkerSP walker);
-    void addStrokeJob(KisStrokeJob *strokeJob);
-    void addSpontaneousJob(KisSpontaneousJob *spontaneousJob);
+    void addMergeJob(KisBaseRectsWalkerSP walker) override;
+    void addStrokeJob(KisStrokeJob *strokeJob) override;
+    void addSpontaneousJob(KisSpontaneousJob *spontaneousJob) override;
 
     const QVector<KisUpdateJobItem*> getJobs();
     void clear();

@@ -25,6 +25,9 @@
 #include "kis_properties_configuration.h"
 #include "filter/kis_color_transformation_configuration.h"
 #include "kis_config_widget.h"
+#include <KoResourcePopupAction.h>
+#include <kis_signal_compressor.h>
+#include <KoStopGradient.h>
 
 class WdgGradientMap : public QWidget, public Ui::WdgGradientMap
 {
@@ -41,7 +44,7 @@ class KritaGradientMapFilterConfiguration : public KisColorTransformationConfigu
 {
 public:
     KritaGradientMapFilterConfiguration();
-    virtual ~KritaGradientMapFilterConfiguration();
+    ~KritaGradientMapFilterConfiguration() override;
 
     virtual void setGradient(const KoResource* gradient);
 
@@ -56,14 +59,18 @@ class KritaGradientMapConfigWidget : public KisConfigWidget
     Q_OBJECT
 public:
     KritaGradientMapConfigWidget(QWidget *parent, KisPaintDeviceSP dev, Qt::WFlags f = 0);
-    virtual ~KritaGradientMapConfigWidget();
+    ~KritaGradientMapConfigWidget() override;
 
-    virtual KisPropertiesConfigurationSP configuration() const;
-    virtual void setConfiguration(const KisPropertiesConfigurationSP config);
+    KisPropertiesConfigurationSP configuration() const override;
+    void setConfiguration(const KisPropertiesConfigurationSP config) override;
 
-    WdgGradientMap * m_page;
-    void setView(KisViewManager *view);
-    void gradientResourceChanged(KoResource *gradient);
+    WdgGradientMap *m_page;
+    KoResourcePopupAction *m_gradientPopUp;
+    KisSignalCompressor *m_gradientChangedCompressor;
+    KoStopGradient *m_activeGradient;
+    void setView(KisViewManager *view) override;
+private Q_SLOTS:
+    void setAbstractGradientToEditor();
 };
 
 class KritaGradientMap : public QObject
@@ -71,6 +78,6 @@ class KritaGradientMap : public QObject
     Q_OBJECT
 public:
     KritaGradientMap(QObject *parent, const QVariantList &);
-    virtual ~KritaGradientMap();
+    ~KritaGradientMap() override;
 };
 

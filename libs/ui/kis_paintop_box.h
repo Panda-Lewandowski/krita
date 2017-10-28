@@ -60,6 +60,7 @@ class KisCompositeOpComboBox;
 class KisWidgetChooser;
 class KisFavoriteResourceManager;
 class KisAction;
+class KisPresetSaveWidget;
 
 /**
  * This widget presents all paintops that a user can paint with.
@@ -104,7 +105,7 @@ class KRITAUI_EXPORT KisPaintopBox : public QWidget
 public:
 
     KisPaintopBox(KisViewManager* view, QWidget* parent, const char* name);
-    ~KisPaintopBox();
+    ~KisPaintopBox() override;
 
     void restoreResource(KoResource* resource);
     /**
@@ -135,7 +136,6 @@ private:
 
 private Q_SLOTS:
 
-    void slotSaveActivePreset();
     void slotUpdatePreset();
     void slotSetupDefaultPreset();
     void slotNodeChanged(const KisNodeSP node);
@@ -179,6 +179,8 @@ private:
     QWidget*                            m_paintopWidget;
     KisPaintOpConfigWidget*             m_optionWidget;
     KisPopupButton*                     m_toolOptionsPopupButton;
+
+    KisPresetSaveWidget*                m_savePresetWidget;
     KisPopupButton*                     m_brushEditorPopupButton;
     KisPopupButton*                     m_presetSelectorPopupButton;
     KisCompositeOpComboBox*             m_cmbCompositeOp;
@@ -205,6 +207,14 @@ private:
 
     KisAction* m_hMirrorAction;
     KisAction* m_vMirrorAction;
+
+    KisAction* hideCanvasDecorationsX;
+    KisAction* lockActionX;
+    KisAction* moveToCenterActionX;
+    KisAction* hideCanvasDecorationsY;
+    KisAction* lockActionY;
+    KisAction* moveToCenterActionY;
+
 
     struct TabletToolID {
         TabletToolID(const KoInputDevice& dev) {

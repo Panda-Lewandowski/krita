@@ -1,6 +1,6 @@
 /* This file is part of the KDE project
  * Copyright (C) 2007-2008 Fredy Yanardi <fyanardi@gmail.com>
- * Copyright (C) 2011 Boudewijn Rempt <boud@kogmbh.com>
+ * Copyright (C) 2011 Boudewijn Rempt <boud@valdyas.org>
  * Copyright (C) 2012 C. Boemann <cbo@boemann.dk>
  *
  * This library is free software; you can redistribute it and/or
@@ -49,10 +49,10 @@ public:
      */
     explicit KoBookmark(const QTextCursor &);
 
-    virtual ~KoBookmark();
+    ~KoBookmark() override;
 
     /// reimplemented from super
-    void saveOdf(KoShapeSavingContext &context, int position, TagType tagType) const;
+    void saveOdf(KoShapeSavingContext &context, int position, TagType tagType) const override;
 
     /**
      * Set the new name for this bookmark
@@ -63,7 +63,7 @@ public:
     /// @return the name of this bookmark
     QString name() const;
 
-    virtual bool loadOdf(const KoXmlElement &element, KoShapeLoadingContext &context);
+    bool loadOdf(const KoXmlElement &element, KoShapeLoadingContext &context) override;
 
     /**
      * This is called to allow Cut and Paste of bookmarks. This

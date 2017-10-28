@@ -61,7 +61,7 @@ public:
                          const QColor &defaultColor);
 
     KisScratchPad(QWidget *parent = 0);
-    virtual ~KisScratchPad();
+    ~KisScratchPad() override;
 
     /// set the specified rect as the area taken for @see cutoutOverlay
     void setCutoutOverlayRect(const QRect&rc);
@@ -86,6 +86,7 @@ public Q_SLOTS:
     void fillGradient();
     void fillBackground();
     void fillLayer();
+    void fillTransparent();
 
     /**
      * Set the icon of the current preset
@@ -100,6 +101,12 @@ public Q_SLOTS:
      */
     void paintPresetImage();
 
+    /**
+     * Paint the icon of a custom image that is being loaded
+     *
+     */
+    void paintCustomImage(const QImage& loadedImage);
+
 private Q_SLOTS:
     void setOnScreenResolution(qreal scaleX, qreal scaleY);
     void setDisplayProfile(const KoColorProfile* colorProfile);
@@ -110,7 +117,7 @@ Q_SIGNALS:
     void sigUpdateCanvas(const QRect &rect);
 
 protected:
-    virtual void paintEvent ( QPaintEvent * event );
+    void paintEvent ( QPaintEvent * event ) override;
 
 
 private:

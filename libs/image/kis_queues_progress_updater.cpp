@@ -25,8 +25,10 @@
 
 struct Q_DECL_HIDDEN KisQueuesProgressUpdater::Private
 {
-    Private()
-        : queueSizeMetric(0)
+    Private(KisQueuesProgressUpdater *q)
+        : timer(q)
+        , startDelayTimer(q)
+        , queueSizeMetric(0)
         , initialQueueSizeMetric(0)
         , progressProxy(0)
         , tickingRequested(false)
@@ -50,8 +52,9 @@ struct Q_DECL_HIDDEN KisQueuesProgressUpdater::Private
 };
 
 
-KisQueuesProgressUpdater::KisQueuesProgressUpdater(KoProgressProxy *progressProxy)
-    : m_d(new Private)
+KisQueuesProgressUpdater::KisQueuesProgressUpdater(KoProgressProxy *progressProxy, QObject *parent)
+    : QObject(parent),
+      m_d(new Private(this))
 {
     m_d->progressProxy = progressProxy;
 
@@ -123,7 +126,13 @@ void KisQueuesProgressUpdater::timerTicked()
 {
     QMutexLocker locker(&m_d->mutex);
 
-    m_d->progressProxy->setRange(0, m_d->initialQueueSizeMetric);
-    m_d->progressProxy->setValue(m_d->initialQueueSizeMetric - m_d->queueSizeMetric);
-    m_d->progressProxy->setFormat(m_d->jobName);
+    if (!m_d->initialQueueSizeMetric) {
+        m_d->progressProxy->setRange(0, 100);
+        m_d->progressProxy->setValue(100);
+        m_d->progressProxy->setFormat("%p%");
+    } else {
+        m_d->progressProxy->setRange(0, m_d->initialQueueSizeMetric);
+        m_d->progressProxy->setValue(m_d->initialQueueSizeMetric - m_d->queueSizeMetric);
+        m_d->progressProxy->setFormat(m_d->jobName);
+    }
 }

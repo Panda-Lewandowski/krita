@@ -43,7 +43,7 @@ class KRITALIBKIS_EXPORT Krita : public QObject
 
 public:
     explicit Krita(QObject *parent = 0);
-    virtual ~Krita();
+    ~Krita() override;
 
 public Q_SLOTS:
 
@@ -107,6 +107,29 @@ public Q_SLOTS:
     Filter *filter(const QString &name) const;
 
     /**
+     * @brief colorModels creates a list with all color models id's registered.
+     * @return a list of all color models or a empty list if there is no such color models.
+     */
+    QStringList colorModels() const;
+
+    /**
+     * @brief colorDepths creates a list with the names of all color depths
+     * compatible with the given color model.
+     * @param colorModel the id of a color model.
+     * @return a list of all color depths or a empty list if there is no such
+     * color depths.
+     */
+    QStringList colorDepths(const QString &colorModel) const;
+
+    /**
+     * @brief filterStrategies Retrieves all installed filter strategies. A filter
+     * strategy is used when transforming (scaling, shearing, rotating) an image to
+     * calculate the value of the new pixels. You can use th
+     * @return the id's of all available filters.
+     */
+    QStringList filterStrategies() const;
+
+    /**
      * @brief profiles creates a list with the names of all color profiles compatible
      * with the given color model and color depth.
      * @param colorModel A string describing the color model of the image:
@@ -142,7 +165,7 @@ public Q_SLOTS:
      * closed, the configuration changes, views are opened and closed or windows are opened.
      * @return the notifier object
      */
-    Notifier* notifier() const;
+    Notifier *notifier() const;
 
     /**
      * @brief version Determine the version of Krita
@@ -182,6 +205,13 @@ public Q_SLOTS:
      * </ul>
      */
     QMap<QString, Resource*> resources(const QString &type) const;
+
+
+    /**
+     * @brief return all recent documents registered in the RecentFiles group of the kritarc
+     */
+    QStringList recentDocuments() const;
+
 
     /**
      * @brief createDocument creates a new document and image and registers the document with the Krita application.
@@ -228,11 +258,13 @@ public Q_SLOTS:
 
     /**
      * @brief createAction creates an action with the given text and passes it to Krita. Every newly created
-     *     mainwindow will create an instance of this action.
+     *     mainwindow will create an instance of this action. This means that actions need to be created in the
+     *     setup phase of the plugin, not on the fly.
+     * @param id the unique id for this action
      * @param text the user-visible text
      * @return the Action you can connect a slot to.
      */
-    Action *createAction(const QString &text);
+    Action *createAction(const QString &name, const QString &text);
 
     /**
      * @brief addExtension add the given plugin to Krita. There will be a single instance of each Extension in the Krita process.

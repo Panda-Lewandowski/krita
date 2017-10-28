@@ -39,6 +39,7 @@
 #include "commands/kis_image_layer_move_command.h"
 #include "commands/kis_image_change_layers_command.h"
 #include "commands_new/kis_activate_selection_mask_command.h"
+#include "commands/kis_image_change_visibility_command.h"
 #include "kis_abstract_projection_plane.h"
 #include "kis_processing_applicator.h"
 #include "kis_image_animation_interface.h"
@@ -49,6 +50,8 @@
 #include "kis_layer_properties_icons.h"
 #include "lazybrush/kis_colorize_mask.h"
 #include "commands/kis_node_property_list_command.h"
+#include <KisDelayedUpdateNodeInterface.h>
+#include "krita_utils.h"
 
 
 namespace KisLayerUtils {
@@ -84,7 +87,10 @@ namespace KisLayerUtils {
         QSet<int> frames;
 
         virtual KisNodeList allSrcNodes() = 0;
-        virtual KisLayerSP dstLayer() { return 0; }
+
+        KisLayerSP dstLayer() {
+            return qobject_cast<KisLayer*>(dstNode.data());
+        }
     };
 
     struct MergeDownInfo : public MergeDownInfoBase {
@@ -108,10 +114,6 @@ namespace KisLayerUtils {
             mergedNodes << currLayer;
             mergedNodes << prevLayer;
             return mergedNodes;
-        }
-
-        KisLayerSP dstLayer() override {
-            return qobject_cast<KisLayer*>(dstNode.data());
         }
     };
 
@@ -197,6 +199,40 @@ namespace KisLayerUtils {
         MergeDownInfoBaseSP m_info;
     };
 
+    struct DisablePassThroughForHeadsOnly : public KisCommandUtils::AggregateCommand {
+        DisablePassThroughForHeadsOnly(MergeDownInfoBaseSP info, bool skipIfDstIsGroup = false)
+            : m_info(info),
+              m_skipIfDstIsGroup(skipIfDstIsGroup)
+        {
+        }
+
+        void populateChildCommands() override {
+            if (m_skipIfDstIsGroup &&
+                m_info->dstLayer() &&
+                m_info->dstLayer()->inherits("KisGroupLayer")) {
+
+                return;
+            }
+
+
+            Q_FOREACH (KisNodeSP node, m_info->allSrcNodes()) {
+                if (KisLayerPropertiesIcons::nodeProperty(node, KisLayerPropertiesIcons::passThrough, false).toBool()) {
+
+                    KisBaseNode::PropertyList props = node->sectionModelProperties();
+                    KisLayerPropertiesIcons::setNodeProperty(&props,
+                                                             KisLayerPropertiesIcons::passThrough,
+                                                             false);
+
+                    addCommand(new KisNodePropertyListCommand(node, props));
+                }
+            }
+        }
+
+    private:
+        MergeDownInfoBaseSP m_info;
+        bool m_skipIfDstIsGroup;
+    };
+
     struct RefreshHiddenAreas : public KUndo2Command {
         RefreshHiddenAreas(MergeDownInfoBaseSP info) : m_info(info) {}
 
@@ -238,6 +274,26 @@ namespace KisLayerUtils {
                 }
             }
         }
+    private:
+        MergeDownInfoBaseSP m_info;
+    };
+
+    struct RefreshDelayedUpdateLayers : public KUndo2Command {
+        RefreshDelayedUpdateLayers(MergeDownInfoBaseSP info) : m_info(info) {}
+
+        void redo() override {
+            foreach (KisNodeSP node, m_info->allSrcNodes()) {
+                recursiveApplyNodes(node,
+                    [] (KisNodeSP node) {
+                        KisDelayedUpdateNodeInterface *delayedUpdate =
+                            dynamic_cast<KisDelayedUpdateNodeInterface*>(node.data());
+                        if (delayedUpdate) {
+                            delayedUpdate->forceUpdateTimedNode();
+                        }
+                    });
+            }
+        }
+
     private:
         MergeDownInfoBaseSP m_info;
     };
@@ -306,13 +362,13 @@ namespace KisLayerUtils {
     };
 
     struct CreateMergedLayerMultiple : public KisCommandUtils::AggregateCommand {
-        CreateMergedLayerMultiple(MergeMultipleInfoSP info, const QString name = QString() ) 
+        CreateMergedLayerMultiple(MergeMultipleInfoSP info, const QString name = QString() )
             : m_info(info),
               m_name(name) {}
 
         void populateChildCommands() override {
             QString mergedLayerName;
-            
+
             if (m_name.isEmpty()){
                 const QString mergedLayerSuffix = i18n("Merged");
                 mergedLayerName = m_info->mergedNodes.first()->name();
@@ -324,7 +380,7 @@ namespace KisLayerUtils {
             } else {
                 mergedLayerName = m_name;
             }
-                
+
             m_info->dstNode = new KisPaintLayer(m_info->image, mergedLayerName, OPACITY_OPAQUE_U8);
 
             if (m_info->frames.size() > 0) {
@@ -547,14 +603,14 @@ namespace KisLayerUtils {
     struct InsertNode : public KisCommandUtils::AggregateCommand {
         InsertNode(MergeDownInfoBaseSP info, KisNodeSP putAfter)
             : m_info(info), m_putAfter(putAfter) {}
-        
+
         void populateChildCommands() override {
             addCommand(new KisImageLayerAddCommand(m_info->image,
                                                            m_info->dstNode,
                                                            m_putAfter->parent(),
                                                            m_putAfter,
                                                            true, false));
-        
+
         }
 
     private:
@@ -619,11 +675,27 @@ namespace KisLayerUtils {
                                                            true, false));
                 }
 
-                reparentSelectionMasks(m_info->image,
-                                       m_info->dstLayer(),
-                                       m_info->selectionMasks);
+                /**
+                 * We can merge selection masks, in this case dstLayer is not defined!
+                 */
+                if (m_info->dstLayer()) {
+                    reparentSelectionMasks(m_info->image,
+                                           m_info->dstLayer(),
+                                           m_info->selectionMasks);
+                }
 
-                safeRemoveMultipleNodes(m_info->allSrcNodes(), m_info->image);
+                KisNodeList safeNodesToDelete = m_info->allSrcNodes();
+                for (KisNodeList::iterator it = safeNodesToDelete.begin(); it != safeNodesToDelete.end(); ++it) {
+                    KisNodeSP node = *it;
+                    if (node->userLocked() && node->visible()) {
+                        addCommand(new KisImageChangeVisibilityCommand(false, node));
+                    }
+                }
+
+                KritaUtils::filterContainer<KisNodeList>(safeNodesToDelete, [this](KisNodeSP node) {
+                  return !node->userLocked();
+                });
+                safeRemoveMultipleNodes(safeNodesToDelete, m_info->image);
             }
 
 
@@ -637,6 +709,8 @@ namespace KisLayerUtils {
         void reparentSelectionMasks(KisImageSP image,
                                     KisLayerSP newLayer,
                                     const QVector<KisSelectionMaskSP> &selectionMasks) {
+
+            KIS_SAFE_ASSERT_RECOVER_RETURN(newLayer);
 
             foreach (KisSelectionMaskSP mask, selectionMasks) {
                 addCommand(new KisImageLayerMoveCommand(image, mask, newLayer, newLayer->lastChild()));
@@ -772,18 +846,25 @@ namespace KisLayerUtils {
             applicator.applyCommand(new FillSelectionMasks(info));
             applicator.applyCommand(new CreateMergedLayer(info), KisStrokeJobData::BARRIER);
 
+            // in two-layer mode we disable pass trhough only when the destination layer
+            // is not a group layer
+            applicator.applyCommand(new DisablePassThroughForHeadsOnly(info, true));
+            applicator.applyCommand(new KUndo2Command(), KisStrokeJobData::BARRIER);
+
             if (info->frames.size() > 0) {
                 foreach (int frame, info->frames) {
                     applicator.applyCommand(new SwitchFrameCommand(info->image, frame, false, info->storage));
 
                     applicator.applyCommand(new AddNewFrame(info, frame));
                     applicator.applyCommand(new RefreshHiddenAreas(info));
+                    applicator.applyCommand(new RefreshDelayedUpdateLayers(info), KisStrokeJobData::BARRIER);
                     applicator.applyCommand(new MergeLayers(info), KisStrokeJobData::BARRIER);
 
                     applicator.applyCommand(new SwitchFrameCommand(info->image, frame, true, info->storage));
                 }
             } else {
                 applicator.applyCommand(new RefreshHiddenAreas(info));
+                applicator.applyCommand(new RefreshDelayedUpdateLayers(info), KisStrokeJobData::BARRIER);
                 applicator.applyCommand(new MergeLayers(info), KisStrokeJobData::BARRIER);
             }
 
@@ -980,7 +1061,7 @@ namespace KisLayerUtils {
         int putAfterIndex = -1;
 
         Q_FOREACH(KisNodeSP node, nodes) {
-            if (node->visible()) {
+            if (node->visible() || node->userLocked()) {
                 visibleNodes << node;
             } else {
                 *invisibleNodes << node;
@@ -1015,8 +1096,8 @@ namespace KisLayerUtils {
         applicator.end();
     }
 
-    void mergeMultipleLayersImpl(KisImageSP image, KisNodeList mergedNodes, KisNodeSP putAfter, 
-                                           bool flattenSingleLayer, const KUndo2MagicString &actionName, 
+    void mergeMultipleLayersImpl(KisImageSP image, KisNodeList mergedNodes, KisNodeSP putAfter,
+                                           bool flattenSingleLayer, const KUndo2MagicString &actionName,
                                            bool cleanupNodes = true, const QString layerName = QString())
     {
         if (!putAfter) {
@@ -1026,7 +1107,7 @@ namespace KisLayerUtils {
         filterMergableNodes(mergedNodes);
         {
             KisNodeList tempNodes;
-            qSwap(mergedNodes, tempNodes);
+            std::swap(mergedNodes, tempNodes);
             sortMergableNodes(image->root(), tempNodes, mergedNodes);
         }
 
@@ -1062,6 +1143,7 @@ namespace KisLayerUtils {
             // paint layers and wait until update is finished with a barrier
             applicator.applyCommand(new DisableColorizeKeyStrokes(info));
             applicator.applyCommand(new DisableOnionSkins(info));
+            applicator.applyCommand(new DisablePassThroughForHeadsOnly(info));
             applicator.applyCommand(new KUndo2Command(), KisStrokeJobData::BARRIER);
 
             applicator.applyCommand(new KeepMergedNodesSelected(info, putAfter, false));
@@ -1074,12 +1156,14 @@ namespace KisLayerUtils {
 
                     applicator.applyCommand(new AddNewFrame(info, frame));
                     applicator.applyCommand(new RefreshHiddenAreas(info));
+                    applicator.applyCommand(new RefreshDelayedUpdateLayers(info), KisStrokeJobData::BARRIER);
                     applicator.applyCommand(new MergeLayersMultiple(info), KisStrokeJobData::BARRIER);
 
                     applicator.applyCommand(new SwitchFrameCommand(info->image, frame, true, info->storage));
                 }
             } else {
                 applicator.applyCommand(new RefreshHiddenAreas(info));
+                applicator.applyCommand(new RefreshDelayedUpdateLayers(info), KisStrokeJobData::BARRIER);
                 applicator.applyCommand(new MergeLayersMultiple(info), KisStrokeJobData::BARRIER);
             }
 
@@ -1104,7 +1188,7 @@ namespace KisLayerUtils {
     {
         mergeMultipleLayersImpl(image, mergedNodes, putAfter, false, kundo2_i18n("Merge Selected Nodes"));
     }
-    
+
     void newLayerFromVisible(KisImageSP image, KisNodeSP putAfter)
     {
         KisNodeList mergedNodes;

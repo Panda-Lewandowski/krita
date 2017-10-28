@@ -30,10 +30,10 @@
 #include <QLabel>
 #include <kactioncollection.h>
 
-
 #include <KoCanvasBase.h>
 #include <KoCanvasController.h>
 
+#include <kis_action_registry.h>
 #include "kis_cursor.h"
 #include "kis_config.h"
 #include "kis_slider_spin_box.h"
@@ -76,7 +76,7 @@ KisToolBrush::KisToolBrush(KoCanvasBase * canvas)
     addSmoothingAction(KisSmoothingOptions::SIMPLE_SMOOTHING, "set_simple_brush_smoothing", i18nc("@action", "Brush Smoothing: Basic"), KisIconUtils::loadIcon("smoothing-basic"), collection);
     addSmoothingAction(KisSmoothingOptions::WEIGHTED_SMOOTHING, "set_weighted_brush_smoothing", i18nc("@action", "Brush Smoothing: Weighted"), KisIconUtils::loadIcon("smoothing-weighted"), collection);
     addSmoothingAction(KisSmoothingOptions::STABILIZER, "set_stabilizer_brush_smoothing", i18nc("@action", "Brush Smoothing: Stabilizer"), KisIconUtils::loadIcon("smoothing-stabilizer"), collection);
-    
+
 }
 
 KisToolBrush::~KisToolBrush()
@@ -422,7 +422,7 @@ QWidget * KisToolBrush::createOptionWidget()
 
     assistantWidget->setToolTip(i18n("You need to add Ruler Assistants before this tool will work."));
     connect(m_chkAssistant, SIGNAL(toggled(bool)), this, SLOT(setAssistant(bool)));
-    assistantLayout->addWidget(m_chkAssistant, 1, 1, 1, 1, Qt::AlignLeft);
+    addOptionWidgetOption(assistantWidget, m_chkAssistant);
 
     m_sliderMagnetism = new KisSliderSpinBox(optionsWidget);
     m_sliderMagnetism->setToolTip(i18n("Assistant Magnetism"));
@@ -430,14 +430,14 @@ QWidget * KisToolBrush::createOptionWidget()
 
     m_sliderMagnetism->setValue(m_magnetism * MAXIMUM_MAGNETISM);
     connect(m_sliderMagnetism, SIGNAL(valueChanged(int)), SLOT(slotSetMagnetism(int)));
-    
-    QAction *toggleaction = new QAction(i18n("Toggle Assistant"), this);
+
+    QAction *toggleaction =  KisActionRegistry::instance()->makeQAction("toggle_assistant", this);
     addAction("toggle_assistant", toggleaction);
     toggleaction->setShortcut(QKeySequence(Qt::ControlModifier + Qt::ShiftModifier + Qt::Key_L));
     connect(toggleaction, SIGNAL(triggered(bool)), m_chkAssistant, SLOT(toggle()));
 
-
-    addOptionWidgetOption(m_sliderMagnetism, assistantWidget);
+    QLabel* magnetismLabel = new QLabel(i18n("Magnetism:"));
+    addOptionWidgetOption(m_sliderMagnetism, magnetismLabel);
 
     QLabel* snapSingleLabel = new QLabel(i18n("Snap Single:"));
 
@@ -452,11 +452,12 @@ QWidget * KisToolBrush::createOptionWidget()
     m_sliderMagnetism->setVisible(false);
     m_chkOnlyOneAssistant->setVisible(false);
     snapSingleLabel->setVisible(false);
+    magnetismLabel->setVisible(false);
 
    connect(m_chkAssistant, SIGNAL(toggled(bool)), m_sliderMagnetism, SLOT(setVisible(bool)));
    connect(m_chkAssistant, SIGNAL(toggled(bool)), m_chkOnlyOneAssistant, SLOT(setVisible(bool)));
    connect(m_chkAssistant, SIGNAL(toggled(bool)), snapSingleLabel, SLOT(setVisible(bool)));
-
+    connect(m_chkAssistant, SIGNAL(toggled(bool)), magnetismLabel, SLOT(setVisible(bool)));
 
 
     KisConfig cfg;
