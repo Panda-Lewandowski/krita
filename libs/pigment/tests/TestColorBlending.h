@@ -11,10 +11,12 @@ private Q_SLOTS:
     void test();
 };
 
-class TestColorBlendingWindow: public QWidget, Ui::MainWindow
+class TestColorBlendingWindow: public QMainWindow, Ui::MainWindow
 {
     Q_OBJECT
 public:
-    TestColorBlendingWindow(QWidget* parent = 0);
+    TestColorBlendingWindow(QMainWindow *parent = 0) : QMainWindow(parent) {
+        setupUi(this);
+    }
 };
 #endif // TESTCOLORBLENDING_H

@@ -1,19 +1,28 @@
 #include "TestColorBlending.h"
 
 #include <QTest>
-#include <QDialog>
+#include <QApplication>
 
 
 void TestColorBlending::test()
 {
-    QDialog window;
-    window.exec();
+    //TestColorBlendingWindow w;
+    //w.show();
+    //QApplication app();
+
+    TestColorBlendingWindow *demo = new TestColorBlendingWindow;
+    demo->show();
+    //demo->exec();
 }
 
-TestColorBlendingWindow::TestColorBlendingWindow(QWidget *parent)
-    : QWidget(parent)
-{
-   //this->setupUi(this);
-}
+
 
 QTEST_MAIN(TestColorBlending)
+/*int main(int argc, char **argv)
+{
+    QApplication app(argc, argv);
+
+    TestColorBlendingWindow *demo = new TestColorBlendingWindow;
+    demo->show();
+    return app.exec();
+}*/
