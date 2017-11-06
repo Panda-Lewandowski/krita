@@ -4,25 +4,16 @@
 #include <QApplication>
 
 
-void TestColorBlending::test()
+void TestColorBlending::main_test_window()
 {
-    //TestColorBlendingWindow w;
-    //w.show();
-    //QApplication app();
+    QEventLoop loop;
 
     TestColorBlendingWindow *demo = new TestColorBlendingWindow;
     demo->show();
-    //demo->exec();
+    loop.exec();
 }
 
 
 
 QTEST_MAIN(TestColorBlending)
-/*int main(int argc, char **argv)
-{
-    QApplication app(argc, argv);
 
-    TestColorBlendingWindow *demo = new TestColorBlendingWindow;
-    demo->show();
-    return app.exec();
-}*/

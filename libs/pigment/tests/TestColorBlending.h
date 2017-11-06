@@ -8,7 +8,7 @@ class TestColorBlending : public QObject
 {
     Q_OBJECT
 private Q_SLOTS:
-    void test();
+    void main_test_window();
 };
 
 class TestColorBlendingWindow: public QMainWindow, Ui::MainWindow
