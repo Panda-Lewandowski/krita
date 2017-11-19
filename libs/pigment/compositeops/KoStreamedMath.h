@@ -175,23 +175,6 @@ static inline void fetch_colors_32(const quint8 *data,
     c3 = Vc::float_v(int_v( data_i        & mask));
 }
 
-/*static inline int_v iround(Vc::float_v::AsArg v) {
-#ifdef Vc_IMPL_SSE4_1
-    #ifndef Vc_IMPL_AVX
-        __m128 x = v.data();
-        __m128i y = _mm_cvtps_epi32(x);
-        int_v result(y);
-    #else
-        __m256 x = v.data();
-        __m256i y = _mm256_cvtps_epi32(x);
-        int_v result(y);
-    #endif
-#else
-    int_v result = int_v(Vc::round(v));
-#endif
-    return result;
-}*/
-
 /**
  * Pack color and alpha values to Vc::float_v::size() pixels 32-bit each
  * (4 channels, 8 bit per channel).  The color data is considered
