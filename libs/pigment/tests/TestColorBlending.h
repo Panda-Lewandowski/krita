@@ -11,6 +11,7 @@
 #include "KoCompositeOpRegistry.h"
 #include "KoStreamedMath.h"
 #include "KoOptimizedCompositeOpOver32.h"
+#include "KoOptimizedCompositeOpFactory.h"
 #include <kis_debug.h>
 #include "KoResourcePaths.h"
 
@@ -20,9 +21,15 @@ class TestColorBlending : public QObject
     Q_OBJECT
 private Q_SLOTS:
     void init();
+    //void benchmark();
+    //void compareOverOps();
+    //void compareOverOpsNoMask();
 
-    //void main_test_window();
-    void test();
+    //void mask_test(); //OK
+    void alpha_test();
+   // void colors_test(); //OK
+    void channels_test();
+   // void test_blend();
 
 
 };
@@ -35,6 +42,8 @@ public:
         setupUi(this);
     }
 };
+
+
 
 template<typename channels_type, typename pixel_type, bool alphaLocked, bool allChannelsFlag>
 struct OptimizedOverCompositor32 {
@@ -53,23 +62,24 @@ struct OptimizedOverCompositor32 {
     {
         Q_UNUSED(oparams);
 
-        Vc::float_v src_alpha;
-        Vc::float_v dst_alpha;
+        Vc::uint16_v src_alpha;
+        Vc::uint16_v dst_alpha;
 
-        src_alpha = KoStreamedMath<_impl>::template fetch_alpha_32<src_aligned>(src);
+        src_alpha = KoStreamedMath<_impl>::template fetch_alpha_uint16<src_aligned>(src);
 
-        bool haveOpacity = opacity != 1.0;
-        Vc::float_v opacity_norm_vec(opacity);
 
-        Vc::float_v uint8Max((float)255.0);
-        Vc::float_v uint8MaxRec1((float)1.0 / 255.0);
-        Vc::float_v zeroValue(Vc::Zero);
-        Vc::float_v oneValue(Vc::One);
+        bool haveOpacity = opacity != 1;
+        Vc::uint16_v opacity_norm_vec(opacity);
+
+        Vc::uint16_v uint8Max(255);
+        Vc::uint16_v uint8MaxRec1(1/255);
+        Vc::uint16_v zeroValue(Vc::Zero);
+        Vc::uint16_v oneValue(Vc::One);
 
         src_alpha *= opacity_norm_vec;
 
         if (haveMask) {
-            Vc::float_v mask_vec = KoStreamedMath<_impl>::fetch_mask_8(mask);
+            Vc::uint16_v mask_vec = KoStreamedMath<_impl>::fetch_mask_8_uint16(mask);
             src_alpha *= mask_vec * uint8MaxRec1;
         }
 
@@ -79,20 +89,20 @@ struct OptimizedOverCompositor32 {
             return;
         }
 
-        dst_alpha = KoStreamedMath<_impl>::template fetch_alpha_32<true>(dst);
+        dst_alpha = KoStreamedMath<_impl>::template fetch_alpha_uint16<true>(dst);
 
-        Vc::float_v src_c1;
-        Vc::float_v src_c2;
-        Vc::float_v src_c3;
+        Vc::uint16_v src_c1;
+        Vc::uint16_v src_c2;
+        Vc::uint16_v src_c3;
 
-        Vc::float_v dst_c1;
-        Vc::float_v dst_c2;
-        Vc::float_v dst_c3;
+        Vc::uint16_v dst_c1;
+        Vc::uint16_v dst_c2;
+        Vc::uint16_v dst_c3;
 
 
-        KoStreamedMath<_impl>::template fetch_colors_32<src_aligned>(src, src_c1, src_c2, src_c3);
-        Vc::float_v src_blend;
-        Vc::float_v new_alpha;
+        KoStreamedMath<_impl>::template fetch_colors_uint16<src_aligned>(src, src_c1, src_c2, src_c3);
+        Vc::uint16_v src_blend;
+        Vc::uint16_v new_alpha;
 
         if ((dst_alpha == uint8Max).isFull()) {
             new_alpha = dst_alpha;
@@ -109,14 +119,13 @@ struct OptimizedOverCompositor32 {
              */
             new_alpha = dst_alpha + (uint8Max - dst_alpha) * src_alpha * uint8MaxRec1;
 
-            // Optimized version of:
-            //     src_blend = src_alpha / new_alpha;
-            src_blend = OptiDiv<_impl>::divVector(src_alpha, new_alpha);
+            src_blend = src_alpha / new_alpha;
+
 
         }
 
         if (!(src_blend == oneValue).isFull()) {
-            KoStreamedMath<_impl>::template fetch_colors_32<true>(dst, dst_c1, dst_c2, dst_c3);
+            KoStreamedMath<_impl>::template fetch_colors_uint16<true>(dst, dst_c1, dst_c2, dst_c3);
 
             dst_c1 = src_blend * (src_c1 - dst_c1) + dst_c1;
             dst_c2 = src_blend * (src_c2 - dst_c2) + dst_c2;
@@ -124,7 +133,7 @@ struct OptimizedOverCompositor32 {
 
         } else {
             if (!haveMask && !haveOpacity) {
-                memcpy(dst, src, 4 * Vc::float_v::size());
+                memcpy(dst, src, 4 * Vc::uint16_v::size());
                 return;
             } else {
                 // opacity has changed the alpha of the source,
@@ -135,7 +144,7 @@ struct OptimizedOverCompositor32 {
             }
         }
 
-        KoStreamedMath<_impl>::write_channels_32(dst, new_alpha, dst_c1, dst_c2, dst_c3);
+        KoStreamedMath<_impl>::write_channels_uint16(dst, new_alpha, dst_c1, dst_c2, dst_c3);
 
     }
 
@@ -248,7 +257,7 @@ public:
         if (params.channelFlags.isEmpty() ||
             params.channelFlags == QBitArray(4, true)) {
 
-            KoStreamedMath<_impl>::template genericComposite32<haveMask, false, OverCompositor32<quint8, quint32, false, true> >(params);
+            KoStreamedMath<_impl>::template genericComposite32<haveMask, false, OptimizedOverCompositor32<quint8, quint32, false, true> >(params);
         } else {
             const bool allChannelsFlag =
                 params.channelFlags.at(0) &&

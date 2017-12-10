@@ -1,7 +1,6 @@
 #include "TestColorBlending.h"
 
 #include <QTest>
-#include <KoOptimizedCompositeOpOver32.h>
 #include <KoColorSpace.h>
 #include <KoCompositeOp.h>
 #include <KoColorSpaceRegistry.h>
@@ -143,14 +142,14 @@ void generateDataLine(uint seed, int numPixels, quint8 *srcPixels, quint8 *dstPi
 void printData(int numPixels, quint8 *srcPixels, quint8 *dstPixels, quint8 *mask)
 {
     for (int i = 0; i < numPixels; i++) {
-        dbgKrita << "Src: "
+        qDebug() << "Src: "
                  << srcPixels[i*4] << "\t"
                  << srcPixels[i*4+1] << "\t"
                  << srcPixels[i*4+2] << "\t"
                  << srcPixels[i*4+3] << "\t"
                  << "Msk:" << mask[i];
 
-        dbgKrita << "Dst: "
+        qDebug() << "Dst: "
                  << dstPixels[i*4] << "\t"
                  << dstPixels[i*4+1] << "\t"
                  << dstPixels[i*4+2] << "\t"
@@ -254,19 +253,19 @@ bool compareTwoOpsPixels(QVector<Tile> &tiles, channel_type prec) {
 
     for (int i = 0; i < numPixels; i++) {
         if (!comparePixels<channel_type>(dst1, dst2, prec)) {
-            dbgKrita << "Wrong result:" << i;
-            dbgKrita << "Act: " << dst1[0] << dst1[1] << dst1[2] << dst1[3];
-            dbgKrita << "Exp: " << dst2[0] << dst2[1] << dst2[2] << dst2[3];
-            dbgKrita << "Dif: " << dst1[0] - dst2[0] << dst1[1] - dst2[1] << dst1[2] - dst2[2] << dst1[3] - dst2[3];
+            qDebug() << "Wrong result:" << i;
+            qDebug() << "Act: " << dst1[0] << dst1[1] << dst1[2] << dst1[3];
+            qDebug() << "Exp: " << dst2[0] << dst2[1] << dst2[2] << dst2[3];
+            qDebug() << "Dif: " << dst1[0] - dst2[0] << dst1[1] - dst2[1] << dst1[2] - dst2[2] << dst1[3] - dst2[3];
 
             channel_type *s1 = src1 + 4 * i;
             channel_type *s2 = src2 + 4 * i;
 
-            dbgKrita << "SrcA:" << s1[0] << s1[1] << s1[2] << s1[3];
-            dbgKrita << "SrcE:" << s2[0] << s2[1] << s2[2] << s2[3];
+            qDebug() << "SrcA:" << s1[0] << s1[1] << s1[2] << s1[3];
+            qDebug() << "SrcE:" << s2[0] << s2[1] << s2[2] << s2[3];
 
-            dbgKrita << "MskA:" << tiles[0].mask[i];
-            dbgKrita << "MskE:" << tiles[1].mask[i];
+            qDebug() << "MskA:" << tiles[0].mask[i];
+            qDebug() << "MskE:" << tiles[1].mask[i];
 
             return false;
         }
@@ -385,14 +384,14 @@ void benchmarkCompositeOp(const KoCompositeOp *op,
         op->composite(params);
     }
 
-    dbgKrita << testName << "RESULT:" << timer.elapsed() << "msec";
+    qDebug() << testName << "RESULT:" << timer.elapsed() << "msec";
 
     freeTiles(tiles, srcAlignmentShift, dstAlignmentShift);
 }
 
 void benchmarkCompositeOp(const KoCompositeOp *op, const QString &postfix)
 {
-    dbgKrita << "Testing Composite Op:" << op->id() << "(" << postfix << ")";
+    qDebug() << "Testing Composite Op:" << op->id() << "(" << postfix << ")";
 
     benchmarkCompositeOp(op, true, 0.5, 0.3, 0, 0, ALPHA_RANDOM, ALPHA_RANDOM);
     benchmarkCompositeOp(op, true, 0.5, 0.3, 8, 0, ALPHA_RANDOM, ALPHA_RANDOM);
@@ -417,6 +416,7 @@ void benchmarkCompositeOp(const KoCompositeOp *op, const QString &postfix)
     benchmarkCompositeOp(op, false, 1.0, 1.0, 0, 0, ALPHA_ZERO, ALPHA_UNIT);
     benchmarkCompositeOp(op, false, 1.0, 1.0, 0, 0, ALPHA_UNIT, ALPHA_UNIT);
 }
+
 
 
 void TestColorBlending::init() {
@@ -478,13 +478,140 @@ void TestColorBlending::init() {
 
 }
 
-void TestColorBlending::test() {
-    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
-    KoCompositeOp *op = new KoDoubleOptimizedCompositeOpOver32<Vc::CurrentImplementation::current()>(cs);
-    benchmarkCompositeOp(op, "DoupleOptimized");
-    delete op;
+//void TestColorBlending::benchmark()
+//{
+//    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+//    KoCompositeOp *op = new KoDoubleOptimizedCompositeOpOver32<Vc::CurrentImplementation::current()>(cs);
+//    benchmarkCompositeOp(op, "DoupleOptimized");
+//    delete op;
+//}
+
+//void TestColorBlending::compareOverOps()
+//{
+//    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+//    KoCompositeOp *opAct = KoOptimizedCompositeOpFactory::createOverOp32(cs);
+//    KoCompositeOp *opExp = new KoDoubleOptimizedCompositeOpOver32<Vc::CurrentImplementation::current()>(cs);
+
+//    QVERIFY(compareTwoOps(true, opAct, opExp));
+
+//    delete opExp;
+//    delete opAct;
+//}
+
+//void TestColorBlending::compareOverOpsNoMask()
+//{
+//    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+//    KoCompositeOp *opAct = KoOptimizedCompositeOpFactory::createOverOp32(cs);
+//    KoCompositeOp *opExp = new KoDoubleOptimizedCompositeOpOver32<Vc::CurrentImplementation::current()>(cs);
+
+//    QVERIFY(compareTwoOps(false, opAct, opExp));
+
+//    delete opExp;
+//    delete opAct;
+//}
+
+
+//void TestColorBlending::mask_test()
+//{
+//    Vc::uint8_v v;
+//    v[0] = 56; v[1] = 240; v[2] = 38; v[3] = 70;
+//    Vc::uint16_v mask1 = KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_mask_8_uint16((quint8*)&v);
+//    Vc::float_v mask2 = KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_mask_8((quint8*)&v);
+//    qDebug() << "Mymask:" << mask1[0] << mask1[1] << mask1[2] << mask1[3];
+//    qDebug() << "Optmask:" << mask2[0] << mask2[1] << mask2[2] << mask2[3];
+
+//}
+
+
+
+void TestColorBlending::alpha_test()
+{
+    Vc::uint8_v v;
+    v[0] = 56; v[1] = 240; v[2] = 38; v[3] = 80;
+    Vc::uint16_v mask1 = KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_alpha_uint16<true>((quint8*)&v);
+    Vc::float_v mask2 = KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_alpha_32<true>((quint8*)&v);
+    qDebug() << "Myalpha:" << mask1[0] << mask1[1] << mask1[2] << mask1[3];
+    qDebug() << "Optalpha:" << mask2[0] << mask2[1] << mask2[2] << mask2[3];
+
+    mask1 = KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_alpha_uint16<false>((quint8*)&v);
+    mask2 = KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_alpha_32<false>((quint8*)&v);
+    qDebug() << "Myalpha:" << mask1[0] << mask1[1] << mask1[2] << mask1[3];
+    qDebug() << "Optalpha:" << mask2[0] << mask2[1] << mask2[2] << mask2[3];
+
 }
 
+
+//void TestColorBlending::colors_test()
+//{
+//    Vc::uint8_v v;
+//    v[0] = 56;
+//    v[1] = 240;
+//    v[2] = 38;
+//    v[3] = 80;
+//    Vc::float_v src_c1;
+//    Vc::float_v src_c2;
+//    Vc::float_v src_c3;
+
+//    Vc::uint16_v src_c4;
+//    Vc::uint16_v src_c5;
+//    Vc::uint16_v src_c6;
+//    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_32<true>((quint8*)&v, src_c1, src_c2, src_c3);
+//    qDebug() << "OptColor1:" << src_c1[0] << src_c1[1] << src_c1[2] << src_c1[3];
+//    qDebug() << "OptColor2:" << src_c2[0] << src_c2[1] << src_c2[2] << src_c2[3];
+//    qDebug() << "OptColor3:" << src_c3[0] << src_c3[1] << src_c3[2] << src_c3[3];
+
+//    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_uint16<true>((quint8*)&v, src_c4, src_c5, src_c6);
+//    qDebug() << "MyColor1:" << src_c4[0] << src_c4[1] << src_c4[2] << src_c4[3];
+//    qDebug() << "MyColor2:" << src_c5[0] << src_c5[1] << src_c5[2] << src_c5[3];
+//    qDebug() << "MyColor3:" << src_c6[0] << src_c6[1] << src_c6[2] << src_c6[3];
+
+//    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_32<false>((quint8*)&v, src_c1, src_c2, src_c3);
+//    qDebug() << "OptColor1:" << src_c1[0] << src_c1[1] << src_c1[2] << src_c1[3];
+//    qDebug() << "OptColor2:" << src_c2[0] << src_c2[1] << src_c2[2] << src_c2[3];
+//    qDebug() << "OptColor3:" << src_c3[0] << src_c3[1] << src_c3[2] << src_c3[3];
+
+//    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_uint16<false>((quint8*)&v, src_c4, src_c5, src_c6);
+//    qDebug() << "MyColor1:" << src_c4[0] << src_c4[1] << src_c4[2] << src_c4[3];
+//    qDebug() << "MyColor2:" << src_c5[0] << src_c5[1] << src_c5[2] << src_c5[3];
+//    qDebug() << "MyColor3:" << src_c6[0] << src_c6[1] << src_c6[2] << src_c6[3];
+
+
+
+//}
+
+
+void TestColorBlending::channels_test()
+{
+    Vc::float_v src_alpha;src_alpha[0] = 46; src_alpha[1] = 0; src_alpha[2] = 0; src_alpha[3] = 0;
+    Vc::float_v src_c1;src_c1[0] = 54; src_c1[1] = 0; src_c1[2] = 0; src_c1[3] = 0;
+    Vc::float_v src_c2;src_c2[0] = 144; src_c2[1] = 0; src_c2[2] = 0; src_c2[3] = 0;
+    Vc::float_v src_c3;src_c3[0] = 233; src_c3[1] = 0; src_c3[2] = 0; src_c3[3] = 0;
+
+    Vc::uint16_v dst_alpha;dst_alpha[0] = 46; dst_alpha[1] = 0; dst_alpha[2] = 0; dst_alpha[3] = 0;
+    Vc::uint16_v dst_c1;dst_c1[0] = 54; dst_c1[1] = 0; dst_c1[2] = 0; dst_c1[3] = 0;
+    Vc::uint16_v dst_c2;dst_c2[0] = 144; dst_c2[1] = 0; dst_c2[2] = 0; dst_c2[3] = 0;
+    Vc::uint16_v dst_c3;dst_c3[0] = 233; dst_c3[1] = 0; dst_c3[2] = 0; dst_c3[3] = 0;
+
+    quint8* v;
+    quint8* w;
+
+    KoStreamedMath<Vc::CurrentImplementation::current()>::write_channels_32(v, src_alpha, src_c1, src_c2, src_c3);
+    qDebug() << "OptChannel:" << v[0] << v[1] << v[2] << v[3];
+
+    KoStreamedMath<Vc::CurrentImplementation::current()>::write_channels_uint16(w, dst_alpha,dst_c1, dst_c2, dst_c3);
+    //qDebug() << "MyChannel:" << w[0] << w[1] << w[2] << w[3];
+
+
+
+}
+
+//void TestColorBlending::test_blend()
+//{
+
+
+
+
+//}
 
 QTEST_MAIN(TestColorBlending)
 
