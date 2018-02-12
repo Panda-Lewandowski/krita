@@ -554,7 +554,7 @@ void checkRounding(qreal opacity, qreal flow, qreal averageOpacity = -1, quint32
 #endif
 
 
-/*void KisCompositionBenchmark::checkRoundingAlphaDarken_05_03()
+void KisCompositionBenchmark::checkRoundingAlphaDarken_05_03()
 {
 #ifdef HAVE_VC
     checkRounding<AlphaDarkenCompositor32<quint8, quint32> >(0.5,0.3);
@@ -811,7 +811,7 @@ void KisCompositionBenchmark::benchmarkMemcpy()
     }
 
     freeTiles(tiles, 0, 0);
-}*/
+}
 
 #ifdef HAVE_VC
     const int vecSize = Vc::float_v::size();
@@ -820,7 +820,7 @@ void KisCompositionBenchmark::benchmarkMemcpy()
     const size_t floatVecAlignment = qMax(vecSize * sizeof(float), sizeof(void*));
 #endif
 
-/*void KisCompositionBenchmark::benchmarkUintFloat()
+void KisCompositionBenchmark::benchmarkUintFloat()
 {
 #ifdef HAVE_VC
     using uint_v = Vc::SimdArray<unsigned int, Vc::float_v::size()>;
@@ -915,7 +915,7 @@ void KisCompositionBenchmark::benchmarkFloatUint()
     MEMALIGN_FREE(iData);
     MEMALIGN_FREE(fData);
 #endif
-}*/
+}
 
 void KisCompositionBenchmark::benchmarkFloatIntUint()
 {
@@ -954,7 +954,7 @@ void KisCompositionBenchmark::benchmarkFloatIntUint()
 #endif
 }
 
-/*void KisCompositionBenchmark::testOfConversion()
+void KisCompositionBenchmark::testOfConversion()
 {
 #ifdef HAVE_VC
     using int_v = Vc::SimdArray<int, Vc::float_v::size()>;
@@ -971,7 +971,7 @@ void KisCompositionBenchmark::benchmarkFloatIntUint()
     }
 
 #endif
-}*/
+}
 
 QTEST_MAIN(KisCompositionBenchmark)
 

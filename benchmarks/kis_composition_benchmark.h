@@ -25,7 +25,7 @@ class KisCompositionBenchmark : public QObject
 {
     Q_OBJECT
 private Q_SLOTS:
-    /*void checkRoundingAlphaDarken_05_03();
+    void checkRoundingAlphaDarken_05_03();
     void checkRoundingAlphaDarken_05_05();
     void checkRoundingAlphaDarken_05_07();
     void checkRoundingAlphaDarken_05_10();
@@ -59,9 +59,9 @@ private Q_SLOTS:
 
     void benchmarkUintFloat();
     void benchmarkUintIntFloat();
-    void benchmarkFloatUint();*/
+    void benchmarkFloatUint();
     void benchmarkFloatIntUint();
-    //void testOfConversion();
+    void testOfConversion();
 
 private:
     void compareRgbF32OverOps();

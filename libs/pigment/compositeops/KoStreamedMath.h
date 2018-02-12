@@ -119,6 +119,11 @@ static inline Vc::float_v fetch_mask_8(const quint8 *data) {
     return Vc::float_v(int_v(data_i));
 }
 
+static inline Vc::uint16_v fetch_mask_8_uint16(const quint8 *data) {
+    Vc::uint16_v data_i(data);
+    return data_i;
+}
+
 /**
  * Get an alpha values from Vc::float_v::size() pixels 32-bit each
  * (4 channels, 8 bit per channel).  The alpha value is considered
@@ -141,6 +146,27 @@ static inline Vc::float_v fetch_alpha_32(const quint8 *data) {
     }
 
     return Vc::float_v(int_v(data_i >> 24));
+}
+
+template <bool aligned>
+static inline Vc::uint16_v fetch_alpha_uint16(const quint8 *data) {
+    if (aligned) {
+#ifdef __AVX2__
+        __m128i data_i;
+        data_i = _mm_loadu_si128((__m128i*) data);
+#else
+        Vc::uint16_v data_i;
+        data_i.load((const quint32*)data, Vc::Unaligned);
+#endif
+    } else {
+        //data_i.load((const quint32*)data, Vc::Unaligned);
+    }
+
+#ifdef __AVX2__
+    return Vc::uint16_v(_mm_cvtepu8_epi16(data_i));
+#else
+    return Vc::uint16_v(data_i);
+#endif
 }
 
 /**
@@ -175,6 +201,26 @@ static inline void fetch_colors_32(const quint8 *data,
     c3 = Vc::float_v(int_v( data_i        & mask));
 }
 
+template <bool aligned>
+static inline void fetch_colors_uint16(const quint8 *data,
+                            Vc::uint16_v &c1,
+                            Vc::uint16_v &c2,
+                            Vc::uint16_v &c3) {
+    Vc::uint32_v data_i;
+    if (aligned) {
+        data_i.load((const quint32*)data, Vc::Aligned);
+    } else {
+        data_i.load((const quint32*)data, Vc::Unaligned);
+    }
+
+    const quint32 lowByteMask = 0xFF;
+    Vc::uint32_v mask(lowByteMask);
+
+    c1 = Vc::uint16_v((data_i >> 16) & mask);
+    c2 = Vc::uint16_v((data_i >> 8)  & mask);
+    c3 = Vc::uint16_v(data_i         & mask);
+}
+
 /**
  * Pack color and alpha values to Vc::float_v::size() pixels 32-bit each
  * (4 channels, 8 bit per channel).  The color data is considered
@@ -207,6 +253,24 @@ static inline void write_channels_32(quint8 *data,
     v1 = v1 | v2;
     v3 = v3 | v4;
     (v1 | v3).store((quint32*)data, Vc::Aligned);
+}
+
+static inline void write_channels_uint16(quint8 *data,
+                                     Vc::uint16_v::AsArg alpha,
+                                     Vc::uint16_v::AsArg c1,
+                                     Vc::uint16_v::AsArg c2,
+                                     Vc::uint16_v::AsArg c3) {
+
+    const quint32 lowByteMask = 0xFF;
+
+    Vc::uint16_v mask(lowByteMask);
+    Vc::uint16_v v1 =  Vc::uint16_v(round(alpha)) << 24;
+    Vc::uint16_v v2 = (Vc::uint16_v(Vc::round(c1)) & mask) << 16;
+    Vc::uint16_v v3 = (Vc::uint16_v(Vc::round(c2)) & mask) <<  8;
+    Vc::uint16_v v4 = Vc::uint16_v(Vc::round(c3))  & mask;
+    v1 = v1 | v2;
+    v3 = v3 | v4;
+    (v1 | v3).store(data, Vc::Aligned);
 }
 
 /**
