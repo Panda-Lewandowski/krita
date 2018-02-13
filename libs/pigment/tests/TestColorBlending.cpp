@@ -511,16 +511,16 @@ void TestColorBlending::init() {
 //}
 
 
-//void TestColorBlending::mask_test()
-//{
-//    Vc::uint8_v v;
-//    v[0] = 56; v[1] = 240; v[2] = 38; v[3] = 70;
-//    Vc::uint16_v mask1 = KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_mask_8_uint16((quint8*)&v);
-//    Vc::float_v mask2 = KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_mask_8((quint8*)&v);
-//    qDebug() << "Mymask:" << mask1[0] << mask1[1] << mask1[2] << mask1[3];
-//    qDebug() << "Optmask:" << mask2[0] << mask2[1] << mask2[2] << mask2[3];
+void TestColorBlending::mask_test()
+{
+    Vc::uint8_v v;
+    v[0] = 56; v[1] = 240; v[2] = 38; v[3] = 70;
+    Vc::uint16_v mask1 = KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_mask_8_uint16((quint8*)&v);
+    Vc::float_v mask2 = KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_mask_8((quint8*)&v);
+    qDebug() << "Mymask:" << mask1[0] << mask1[1] << mask1[2] << mask1[3];
+    qDebug() << "Optmask:" << mask2[0] << mask2[1] << mask2[2] << mask2[3];
 
-//}
+}
 
 
 
@@ -541,69 +541,69 @@ void TestColorBlending::alpha_test()
 }
 
 
-//void TestColorBlending::colors_test()
-//{
-//    Vc::uint8_v v;
-//    v[0] = 56;
-//    v[1] = 240;
-//    v[2] = 38;
-//    v[3] = 80;
-//    Vc::float_v src_c1;
-//    Vc::float_v src_c2;
-//    Vc::float_v src_c3;
-
-//    Vc::uint16_v src_c4;
-//    Vc::uint16_v src_c5;
-//    Vc::uint16_v src_c6;
-//    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_32<true>((quint8*)&v, src_c1, src_c2, src_c3);
-//    qDebug() << "OptColor1:" << src_c1[0] << src_c1[1] << src_c1[2] << src_c1[3];
-//    qDebug() << "OptColor2:" << src_c2[0] << src_c2[1] << src_c2[2] << src_c2[3];
-//    qDebug() << "OptColor3:" << src_c3[0] << src_c3[1] << src_c3[2] << src_c3[3];
-
-//    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_uint16<true>((quint8*)&v, src_c4, src_c5, src_c6);
-//    qDebug() << "MyColor1:" << src_c4[0] << src_c4[1] << src_c4[2] << src_c4[3];
-//    qDebug() << "MyColor2:" << src_c5[0] << src_c5[1] << src_c5[2] << src_c5[3];
-//    qDebug() << "MyColor3:" << src_c6[0] << src_c6[1] << src_c6[2] << src_c6[3];
-
-//    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_32<false>((quint8*)&v, src_c1, src_c2, src_c3);
-//    qDebug() << "OptColor1:" << src_c1[0] << src_c1[1] << src_c1[2] << src_c1[3];
-//    qDebug() << "OptColor2:" << src_c2[0] << src_c2[1] << src_c2[2] << src_c2[3];
-//    qDebug() << "OptColor3:" << src_c3[0] << src_c3[1] << src_c3[2] << src_c3[3];
-
-//    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_uint16<false>((quint8*)&v, src_c4, src_c5, src_c6);
-//    qDebug() << "MyColor1:" << src_c4[0] << src_c4[1] << src_c4[2] << src_c4[3];
-//    qDebug() << "MyColor2:" << src_c5[0] << src_c5[1] << src_c5[2] << src_c5[3];
-//    qDebug() << "MyColor3:" << src_c6[0] << src_c6[1] << src_c6[2] << src_c6[3];
-
-
-
-//}
-
-
-void TestColorBlending::channels_test()
+void TestColorBlending::colors_test()
 {
-    Vc::float_v src_alpha;src_alpha[0] = 46; src_alpha[1] = 0; src_alpha[2] = 0; src_alpha[3] = 0;
-    Vc::float_v src_c1;src_c1[0] = 54; src_c1[1] = 0; src_c1[2] = 0; src_c1[3] = 0;
-    Vc::float_v src_c2;src_c2[0] = 144; src_c2[1] = 0; src_c2[2] = 0; src_c2[3] = 0;
-    Vc::float_v src_c3;src_c3[0] = 233; src_c3[1] = 0; src_c3[2] = 0; src_c3[3] = 0;
+    Vc::uint8_v v;
+    v[0] = 56;
+    v[1] = 240;
+    v[2] = 38;
+    v[3] = 80;
+    Vc::float_v src_c1;
+    Vc::float_v src_c2;
+    Vc::float_v src_c3;
 
-    Vc::uint16_v dst_alpha;dst_alpha[0] = 46; dst_alpha[1] = 0; dst_alpha[2] = 0; dst_alpha[3] = 0;
-    Vc::uint16_v dst_c1;dst_c1[0] = 54; dst_c1[1] = 0; dst_c1[2] = 0; dst_c1[3] = 0;
-    Vc::uint16_v dst_c2;dst_c2[0] = 144; dst_c2[1] = 0; dst_c2[2] = 0; dst_c2[3] = 0;
-    Vc::uint16_v dst_c3;dst_c3[0] = 233; dst_c3[1] = 0; dst_c3[2] = 0; dst_c3[3] = 0;
+    Vc::uint16_v src_c4;
+    Vc::uint16_v src_c5;
+    Vc::uint16_v src_c6;
+    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_32<true>((quint8*)&v, src_c1, src_c2, src_c3);
+    qDebug() << "OptColor1:" << src_c1[0] << src_c1[1] << src_c1[2] << src_c1[3];
+    qDebug() << "OptColor2:" << src_c2[0] << src_c2[1] << src_c2[2] << src_c2[3];
+    qDebug() << "OptColor3:" << src_c3[0] << src_c3[1] << src_c3[2] << src_c3[3];
 
-    quint8* v;
-    quint8* w;
+    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_uint16<true>((quint8*)&v, src_c4, src_c5, src_c6);
+    qDebug() << "MyColor1:" << src_c4[0] << src_c4[1] << src_c4[2] << src_c4[3];
+    qDebug() << "MyColor2:" << src_c5[0] << src_c5[1] << src_c5[2] << src_c5[3];
+    qDebug() << "MyColor3:" << src_c6[0] << src_c6[1] << src_c6[2] << src_c6[3];
 
-    KoStreamedMath<Vc::CurrentImplementation::current()>::write_channels_32(v, src_alpha, src_c1, src_c2, src_c3);
-    qDebug() << "OptChannel:" << v[0] << v[1] << v[2] << v[3];
+    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_32<false>((quint8*)&v, src_c1, src_c2, src_c3);
+    qDebug() << "OptColor1:" << src_c1[0] << src_c1[1] << src_c1[2] << src_c1[3];
+    qDebug() << "OptColor2:" << src_c2[0] << src_c2[1] << src_c2[2] << src_c2[3];
+    qDebug() << "OptColor3:" << src_c3[0] << src_c3[1] << src_c3[2] << src_c3[3];
 
-    KoStreamedMath<Vc::CurrentImplementation::current()>::write_channels_uint16(w, dst_alpha,dst_c1, dst_c2, dst_c3);
-    //qDebug() << "MyChannel:" << w[0] << w[1] << w[2] << w[3];
+    KoStreamedMath<Vc::CurrentImplementation::current()>::fetch_colors_uint16<false>((quint8*)&v, src_c4, src_c5, src_c6);
+    qDebug() << "MyColor1:" << src_c4[0] << src_c4[1] << src_c4[2] << src_c4[3];
+    qDebug() << "MyColor2:" << src_c5[0] << src_c5[1] << src_c5[2] << src_c5[3];
+    qDebug() << "MyColor3:" << src_c6[0] << src_c6[1] << src_c6[2] << src_c6[3];
 
 
 
 }
+
+
+//void TestColorBlending::channels_test()
+//{
+//    Vc::float_v src_alpha;src_alpha[0] = 46; src_alpha[1] = 0; src_alpha[2] = 0; src_alpha[3] = 0;
+//    Vc::float_v src_c1;src_c1[0] = 54; src_c1[1] = 0; src_c1[2] = 0; src_c1[3] = 0;
+//    Vc::float_v src_c2;src_c2[0] = 144; src_c2[1] = 0; src_c2[2] = 0; src_c2[3] = 0;
+//    Vc::float_v src_c3;src_c3[0] = 233; src_c3[1] = 0; src_c3[2] = 0; src_c3[3] = 0;
+
+//    Vc::uint16_v dst_alpha;dst_alpha[0] = 46; dst_alpha[1] = 0; dst_alpha[2] = 0; dst_alpha[3] = 0;
+//    Vc::uint16_v dst_c1;dst_c1[0] = 54; dst_c1[1] = 0; dst_c1[2] = 0; dst_c1[3] = 0;
+//    Vc::uint16_v dst_c2;dst_c2[0] = 144; dst_c2[1] = 0; dst_c2[2] = 0; dst_c2[3] = 0;
+//    Vc::uint16_v dst_c3;dst_c3[0] = 233; dst_c3[1] = 0; dst_c3[2] = 0; dst_c3[3] = 0;
+
+//    quint8* v;
+//    quint8* w;
+
+//    KoStreamedMath<Vc::CurrentImplementation::current()>::write_channels_32(v, src_alpha, src_c1, src_c2, src_c3);
+//    qDebug() << "OptChannel:" << v[0] << v[1] << v[2] << v[3];
+
+//    KoStreamedMath<Vc::CurrentImplementation::current()>::write_channels_uint16(w, dst_alpha,dst_c1, dst_c2, dst_c3);
+//    //qDebug() << "MyChannel:" << w[0] << w[1] << w[2] << w[3];
+
+
+
+//}
 
 //void TestColorBlending::test_blend()
 //{

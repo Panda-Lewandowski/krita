@@ -24,6 +24,7 @@
 #include "KoCompositeOpBase.h"
 #include "KoCompositeOpRegistry.h"
 #include "KoStreamedMath.h"
+#include "kis_debug.h"
 
 
 template<Vc::Implementation _impl>
@@ -73,6 +74,11 @@ struct OverCompositor32 {
     static ALWAYS_INLINE void compositeVector(const quint8 *src, quint8 *dst, const quint8 *mask, float opacity, const OptionalParams &oparams)
     {
         Q_UNUSED(oparams);
+
+        typename KoStreamedMath<_impl>::uint16_16_v tempVar =
+                   KoStreamedMath<_impl>::template fetch_alpha_uint16<src_aligned>(src);
+        Q_UNUSED(tempVar);
+        qDebug() << ppVar(tempVar.size());
 
         Vc::float_v src_alpha;
         Vc::float_v dst_alpha;

@@ -25,10 +25,10 @@ private Q_SLOTS:
     //void compareOverOps();
     //void compareOverOpsNoMask();
 
-    //void mask_test(); //OK
+    void mask_test(); //OK
     void alpha_test();
-   // void colors_test(); //OK
-    void channels_test();
+    void colors_test(); //OK
+    //void channels_test();
    // void test_blend();
 
 

@@ -28,7 +28,7 @@ if(Poppler_Qt5_FOUND)
 endif()
 
 if(LIBRAW_FOUND)
-    add_subdirectory(raw)
+   #add_subdirectory(raw)
 endif()
 
 add_subdirectory(svg)

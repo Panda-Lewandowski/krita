@@ -47,6 +47,9 @@ struct KoStreamedMath {
 
 using int_v = Vc::SimdArray<int, Vc::float_v::size()>;
 using uint_v = Vc::SimdArray<unsigned int, Vc::float_v::size()>;
+using int32_16_v = Vc::SimdArray<qint32,  Vc::uint16_v::size()>;
+using uint32_16_v = Vc::SimdArray<quint32, Vc::uint16_v::size()>;
+using uint16_16_v = Vc::SimdArray<quint16, Vc::uint16_v::size()>;
 
 /**
  * Composes src into dst without using vector instructions
@@ -149,24 +152,15 @@ static inline Vc::float_v fetch_alpha_32(const quint8 *data) {
 }
 
 template <bool aligned>
-static inline Vc::uint16_v fetch_alpha_uint16(const quint8 *data) {
-    if (aligned) {
-#ifdef __AVX2__
-        __m128i data_i;
-        data_i = _mm_loadu_si128((__m128i*) data);
-#else
-        Vc::uint16_v data_i;
-        data_i.load((const quint32*)data, Vc::Unaligned);
-#endif
-    } else {
-        //data_i.load((const quint32*)data, Vc::Unaligned);
-    }
+static inline uint16_16_v fetch_alpha_uint16(const quint8 *data) {
+    uint32_16_v data_i;
+   if (aligned) {
+       data_i.load((const quint32*)data, Vc::Aligned);
+   } else {
+       data_i.load((const quint32*)data, Vc::Unaligned);
+   }
 
-#ifdef __AVX2__
-    return Vc::uint16_v(_mm_cvtepu8_epi16(data_i));
-#else
-    return Vc::uint16_v(data_i);
-#endif
+   return uint16_16_v(data_i >> 24);
 }
 
 /**
