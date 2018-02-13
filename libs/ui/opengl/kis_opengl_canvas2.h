@@ -81,8 +81,6 @@ public:
     void renderDecorations(QPainter *painter);
     void paintToolOutline(const QPainterPath &path);
 
-    bool needsFpsDebugging() const;
-
 public: // Implement kis_abstract_canvas_widget interface
     void setDisplayFilter(QSharedPointer<KisDisplayFilter> displayFilter) override;
     void setWrapAroundViewingMode(bool value) override;
@@ -102,8 +100,9 @@ public: // Implement kis_abstract_canvas_widget interface
 
     KisOpenGLImageTexturesSP openGLImageTextures() const;
 
-private Q_SLOTS:
+public Q_SLOTS:
     void slotConfigChanged();
+    void slotPixelGridModeChanged();
 
 protected: // KisCanvasWidgetBase
     bool callFocusNextPrevChild(bool next) override;

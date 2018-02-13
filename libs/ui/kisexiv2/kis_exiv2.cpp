@@ -15,7 +15,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
- 
+
 #include "kis_exiv2.h"
 
 #include <QDateTime>
@@ -27,7 +27,7 @@
 #include <metadata/kis_meta_data_value.h>
 #include <kis_debug.h>
 
-// ---- Generic convertion functions ---- //
+// ---- Generic conversion functions ---- //
 
 // Convert an exiv value to a KisMetaData value
 KisMetaData::Value exivValueToKMDValue(const Exiv2::Value::AutoPtr value, bool forceSeq, KisMetaData::Value::ValueType arrayType)
@@ -144,7 +144,7 @@ Exiv2::Value* arrayToExivValue(const KisMetaData::Value& value)
 {
     Exiv2::ValueType<_TYPE_>* ev = new Exiv2::ValueType<_TYPE_>();
     for (int i = 0; i < value.asArray().size(); ++i) {
-        ev->value_.push_back(qVariantValue<_TYPE_>(value.asArray()[i].asVariant()));
+        ev->value_.push_back(qvariant_cast<_TYPE_>(value.asArray()[i].asVariant()));
     }
     return ev;
 }
@@ -182,7 +182,7 @@ Exiv2::Value* kmdValueToExivValue(const KisMetaData::Value& value, Exiv2::TypeId
         case Exiv2::string: {
             Exiv2::StringValue* ev = new Exiv2::StringValue();
             for (int i = 0; i < value.asArray().size(); ++i) {
-                ev->value_ += qVariantValue<QString>(value.asArray()[i].asVariant()).toLatin1().constData();
+                ev->value_ += qvariant_cast<QString>(value.asArray()[i].asVariant()).toLatin1().constData();
                 if (i != value.asArray().size() - 1) ev->value_ += ',';
             }
             return ev;

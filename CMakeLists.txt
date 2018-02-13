@@ -75,14 +75,22 @@ endif()
 
 # define common versions of Krita applications, used to generate kritaversion.h
 # update these version for every release:
-set(KRITA_VERSION_STRING "4.0.0-pre-alpha")
-set(KRITA_STABLE_VERSION_MAJOR 4) # 3 for 3.x, 4 for 4.x, etc.
-set(KRITA_STABLE_VERSION_MINOR 0) # 0 for 3.0, 1 for 3.1, etc.
-set(KRITA_VERSION_RELEASE 0)     # 88 for pre-alpha, 89 for Alpha, increase for next test releases, set 0 for first Stable, etc.
-set(KRITA_ALPHA 1) # uncomment only for Alpha
-#set(KRITA_BETA 1) # uncomment only for Beta
+set(KRITA_VERSION_STRING "4.0.0-beta1")
+# Major version: 3 for 3.x, 4 for 4.x, etc.
+set(KRITA_STABLE_VERSION_MAJOR 4)
+# Minor version: 0 for 4.0, 1 for 4.1, etc.
+set(KRITA_STABLE_VERSION_MINOR 0)
+# Bugfix release version, or 0 for before the first stable release
+set(KRITA_VERSION_RELEASE 0)
+# the 4th digit, really only used for the Windows installer:
+# - [Pre-]Alpha: Starts from 0, increment 1 per release
+# - Beta: Starts from 50, increment 1 per release
+# - Stable: Set to 100, bump to 101 if emergency update is needed
+set(KRITA_VERSION_REVISION 50)
+#set(KRITA_ALPHA 1) # uncomment only for Alpha
+set(KRITA_BETA 1) # uncomment only for Beta
 #set(KRITA_RC 1) # uncomment only for RC
-set(KRITA_YEAR 2017) # update every year
+set(KRITA_YEAR 2018) # update every year
 
 if(NOT DEFINED KRITA_ALPHA AND NOT DEFINED KRITA_BETA AND NOT DEFINED KRITA_RC)
     set(KRITA_STABLE 1) # do not edit
@@ -112,13 +120,17 @@ set(KRITA_GIT_SHA1_STRING "")
 set(KRITA_GIT_BRANCH_STRING "")
 
 include(GetGitRevisionDescription)
-get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+get_git_head_hash(GIT_SHA1)
 get_git_branch(GIT_BRANCH)
 
-if(GIT_SHA1 AND GIT_BRANCH)
-    string(SUBSTRING ${GIT_SHA1} 0 7 GIT_SHA1)
-    set(KRITA_GIT_SHA1_STRING ${GIT_SHA1})
-    set(KRITA_GIT_BRANCH_STRING ${GIT_BRANCH})
+if(GIT_SHA1)
+   string(SUBSTRING ${GIT_SHA1} 0 7 GIT_SHA1)
+   set(KRITA_GIT_SHA1_STRING ${GIT_SHA1})
+   if(GIT_BRANCH)
+       set(KRITA_GIT_BRANCH_STRING ${GIT_BRANCH})
+   else()
+       set(KRITA_GIT_BRANCH_STRING "(detached HEAD)")
+   endif()
 endif()
 
 if(NOT DEFINED RELEASE_BUILD)
@@ -191,14 +203,14 @@ include(MacroJPEG)
 ###########################################################
 
 function(TestCompileLinkPythonLibs OUTPUT_VARNAME)
-	include(CheckCXXSourceCompiles)
-	set(CMAKE_REQUIRED_INCLUDES ${PYTHON_INCLUDE_PATH})
-	set(CMAKE_REQUIRED_LIBRARIES ${PYTHON_LIBRARIES})
+    include(CheckCXXSourceCompiles)
+    set(CMAKE_REQUIRED_INCLUDES ${PYTHON_INCLUDE_PATH})
+    set(CMAKE_REQUIRED_LIBRARIES ${PYTHON_LIBRARIES})
     if (MINGW)
         set(CMAKE_REQUIRED_DEFINITIONS -D_hypot=hypot)
     endif (MINGW)
-	unset(${OUTPUT_VARNAME} CACHE)
-	CHECK_CXX_SOURCE_COMPILES("
+    unset(${OUTPUT_VARNAME} CACHE)
+    CHECK_CXX_SOURCE_COMPILES("
 #include <Python.h>
 int main(int argc, char *argv[]) {
     Py_InitializeEx(0);
@@ -206,29 +218,15 @@ int main(int argc, char *argv[]) {
 endfunction()
 
 if(MINGW)
-    # First get the Python library path to make sure the selected Python
-    # can be used for Building, then try to get the Python interpreter again
     find_package(PythonInterp 3.6 EXACT)
     find_package(PythonLibs 3.6 EXACT)
-    if (PYTHONLIBS_FOUND)
-        # Use the same Python as the library
-        get_filename_component(PYTHON_DIR ${PYTHON_LIBRARIES} DIRECTORY)
-        get_filename_component(PYTHON_DIR ${PYTHON_DIR} DIRECTORY)
-        set(PYTHON_EXECUTABLE "${PYTHON_DIR}/python.exe")
-        message(STATUS "Set Python executable: ${PYTHON_EXECUTABLE}")
-        find_package(PythonInterp 3.6 EXACT)
-        if (PYTHONINTERP_FOUND)
-            find_package(PythonLibrary 3.6)
-        else (PYTHONINTERP_FOUND)
-            # This shouldn't happen on Windows...
-            message(FATAL_ERROR "Python library found but python.exe not found!")
-        endif (PYTHONINTERP_FOUND)
-		TestCompileLinkPythonLibs(CAN_USE_PYTHON_LIBS)
-		if (NOT CAN_USE_PYTHON_LIBS)
-			message(WARNING "Compiling with Python library failed, please check whether the architecture is correct. Python will be disabled.")
-            unset(PYTHONLIBS_FOUND CACHE)
-		endif (NOT CAN_USE_PYTHON_LIBS)
-    endif (PYTHONLIBS_FOUND)
+    if (PYTHONLIBS_FOUND AND PYTHONINTERP_FOUND)
+        find_package(PythonLibrary 3.6)
+        TestCompileLinkPythonLibs(CAN_USE_PYTHON_LIBS)
+        if (NOT CAN_USE_PYTHON_LIBS)
+            message(FATAL_ERROR "Compiling with Python library failed, please check whether the architecture is correct. Python will be disabled.")
+        endif (NOT CAN_USE_PYTHON_LIBS)
+    endif (PYTHONLIBS_FOUND AND PYTHONINTERP_FOUND)
 else(MINGW)
     find_package(PythonInterp 3.0)
     find_package(PythonLibrary 3.0)
@@ -379,8 +377,17 @@ add_definitions(
   -DQT_USE_FAST_OPERATOR_PLUS
   -DQT_USE_FAST_CONCATENATION
   -DQT_NO_URL_CAST_FROM_STRING
-  -DQT_DISABLE_DEPRECATED_BEFORE=0
 )
+
+if (${Qt5_VERSION} VERSION_GREATER "5.8.0" )
+    add_definitions(-DQT_DISABLE_DEPRECATED_BEFORE=0x50900)
+elseif(${Qt5_VERSION} VERSION_GREATER "5.7.0" )
+    add_definitions(-DQT_DISABLE_DEPRECATED_BEFORE=0x50800)
+elseif(${Qt5_VERSION} VERSION_GREATER "5.6.0" )
+    add_definitions(-DQT_DISABLE_DEPRECATED_BEFORE=0x50700)
+else()
+    add_definitions(-DQT_DISABLE_DEPRECATED_BEFORE=0x50600)
+endif()
 
 add_definitions(-DTRANSLATION_DOMAIN=\"krita\")
 
@@ -403,17 +410,15 @@ if(WIN32)
     endif()
 endif()
 
+# KDECompilerSettings adds the `--export-all-symbols` linker flag.
+# We don't really need it.
+if(MINGW)
+    string(REPLACE "-Wl,--export-all-symbols" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+    string(REPLACE "-Wl,--export-all-symbols" "" CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS}")
+endif(MINGW)
+
 # enable exceptions globally
 kde_enable_exceptions()
-
-
-# only with this definition will all the FOO_TEST_EXPORT macro do something
-# TODO: check if this can be moved to only those places which make use of it,
-# to reduce global compiler definitions that would trigger a recompile of
-# everything on a change (like adding/removing tests to/from the build)
-if(BUILD_TESTING)
-    add_definitions(-DCOMPILING_TESTS)
-endif()
 
 set(KRITA_DEFAULT_TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/sdk/tests/data/)
 macro(macro_add_unittest_definitions)
@@ -451,8 +456,8 @@ if (APPLE)
 endif()
 
 add_definitions(-DBOOST_ALL_NO_LIB)
-find_package(Boost 1.55 REQUIRED COMPONENTS system) # for pigment and stage
-include_directories(${Boost_INCLUDE_DIRS})
+find_package(Boost 1.55 REQUIRED COMPONENTS system) 
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 ##
 ## Test for GNU Scientific Library
 ##
@@ -603,9 +608,15 @@ if(HAVE_VC)
     include (VcMacros)
 
     if(Vc_COMPILER_IS_CLANG)
-        set(ADDITIONAL_VC_FLAGS "-Wabi -ffp-contract=fast -fPIC")
+        set(ADDITIONAL_VC_FLAGS "-Wabi -ffp-contract=fast")
+        if(NOT WIN32)
+            set(ADDITIONAL_VC_FLAGS "${ADDITIONAL_VC_FLAGS} -fPIC")
+        endif()
     elseif (NOT MSVC)
-        set(ADDITIONAL_VC_FLAGS "-Wabi -fabi-version=0 -ffp-contract=fast -fPIC")
+        set(ADDITIONAL_VC_FLAGS "-Wabi -fabi-version=0 -ffp-contract=fast")
+        if(NOT WIN32)
+            set(ADDITIONAL_VC_FLAGS "${ADDITIONAL_VC_FLAGS} -fPIC")
+        endif()
     endif()
 
     #Handle Vc master
@@ -628,15 +639,8 @@ set(CMAKE_MODULE_PATH ${OLD_CMAKE_MODULE_PATH} )
 
 add_definitions(${QT_DEFINITIONS} ${QT_QTDBUS_DEFINITIONS})
 
-if(WIN32)
-    set(LIB_INSTALL_DIR ${LIB_INSTALL_DIR}
-                        RUNTIME DESTINATION ${BIN_INSTALL_DIR}
-                        LIBRARY ${INSTALL_TARGETS_DEFAULT_ARGS}
-                        ARCHIVE ${INSTALL_TARGETS_DEFAULT_ARGS} )
-endif()
-
 ##
-## Test endianess
+## Test endianness
 ##
 include (TestBigEndian)
 test_big_endian(CMAKE_WORDS_BIGENDIAN)
@@ -682,6 +686,10 @@ configure_file(config-ocio.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-ocio.h )
 
 check_function_exists(powf HAVE_POWF)
 configure_file(config-powf.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-powf.h)
+
+if(WIN32)
+    include(${CMAKE_CURRENT_LIST_DIR}/packaging/windows/ConfigureInstallerNsis.cmake)
+endif()
 
 message("\nBroken tests:")
 foreach(tst ${KRITA_BROKEN_TESTS})

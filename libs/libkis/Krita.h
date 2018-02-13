@@ -71,7 +71,7 @@ public Q_SLOTS:
     bool batchmode() const;
 
     /**
-     * @brief setBatchmode sets the the batchmode to @param value; if true, scripts should
+     * @brief setBatchmode sets the batchmode to @param value; if true, scripts should
      * not show dialogs or messageboxes.
      */
     void setBatchmode(bool value);
@@ -240,9 +240,10 @@ public Q_SLOTS:
      * </ul>
      * @param profile The name of an icc profile that is known to Krita. If an empty string is passed, the default is
      * taken.
+     * @param resolution the resolution in points per inch.
      * @return the created document.
      */
-    Document *createDocument(int width, int height, const QString &name, const QString &colorModel, const QString &colorDepth, const QString &profile);
+    Document *createDocument(int width, int height, const QString &name, const QString &colorModel, const QString &colorDepth, const QString &profile, double resolution);
 
     /**
      * @brief openDocument creates a new Document, registers it with the Krita application and loads the given file.
@@ -264,7 +265,7 @@ public Q_SLOTS:
      * @param text the user-visible text
      * @return the Action you can connect a slot to.
      */
-    Action *createAction(const QString &name, const QString &text);
+    Action *createAction(const QString &name, const QString &text, bool addToScriptMenu = true);
 
     /**
      * @brief addExtension add the given plugin to Krita. There will be a single instance of each Extension in the Krita process.
@@ -304,6 +305,14 @@ public Q_SLOTS:
      * @return a string representing the setting.
      */
     QString readSetting(const QString &group, const QString &name, const QString &defaultValue);
+
+    /**
+     * @brief icon
+     * This allows you to get icons from Krita's internal icons.
+     * @param iconName name of the icon.
+     * @return the icon related to this name.
+     */
+    QIcon icon(QString &iconName) const;
 
     /**
      * @brief instance retrieve the singleton instance of the Application object.

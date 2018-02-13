@@ -59,7 +59,8 @@ void KisPaletteModel::setDisplayRenderer(KoColorDisplayRendererInterface *displa
 
 void KisPaletteModel::slotDisplayConfigurationChanged()
 {
-    reset();
+    beginResetModel();
+    endResetModel();
 }
 
 QModelIndex KisPaletteModel::getLastEntryIndex()
@@ -68,7 +69,7 @@ QModelIndex KisPaletteModel::getLastEntryIndex()
     int endColumn = columnCount();
     if (m_colorSet->nColors()>0) {
         QModelIndex i = this->index(endRow, endColumn, QModelIndex());
-        while (qVariantValue<QStringList>(i.data(RetrieveEntryRole)).isEmpty()) {
+        while (qvariant_cast<QStringList>(i.data(RetrieveEntryRole)).isEmpty()) {
             i = this->index(endRow, endColumn);
             endColumn -=1;
             if (endColumn<0) {
@@ -169,6 +170,9 @@ int KisPaletteModel::rowCount(const QModelIndex& /*parent*/) const
     if (!m_colorSet) {
         return 0;
     }
+    if (m_colorSet->nColors()==0) {
+        return 0;
+    }
     if (columnCount() > 0) {
         int countedrows = m_colorSet->nColorsGroup("")/columnCount();
         if (m_colorSet->nColorsGroup()%columnCount() > 0) {
@@ -256,7 +260,8 @@ QModelIndex KisPaletteModel::index(int row, int column, const QModelIndex& paren
 void KisPaletteModel::setColorSet(KoColorSet* colorSet)
 {
     m_colorSet = colorSet;
-    reset();
+    beginResetModel();
+    endResetModel();
 }
 
 KoColorSet* KisPaletteModel::colorSet() const
@@ -314,10 +319,10 @@ int KisPaletteModel::idFromIndex(const QModelIndex &index) const
         qWarning()<<"invalid index";
     }
     int i=0;
-    QStringList entryList = qVariantValue<QStringList>(data(index, RetrieveEntryRole));
+    QStringList entryList = qvariant_cast<QStringList>(data(index, RetrieveEntryRole));
     if (entryList.isEmpty()) {
         return -1;
-        qWarning()<<"invalid index, there's no data to retreive here";
+        qWarning()<<"invalid index, there's no data to retrieve here";
     }
     if (entryList.at(0)==QString()) {
         return entryList.at(1).toUInt();
@@ -341,7 +346,7 @@ KoColorSetEntry KisPaletteModel::colorSetEntryFromIndex(const QModelIndex &index
     if (!index.isValid()) {
         return blank;
     }
-    QStringList entryList = qVariantValue<QStringList>(data(index, RetrieveEntryRole));
+    QStringList entryList = qvariant_cast<QStringList>(data(index, RetrieveEntryRole));
     if (entryList.isEmpty()) {
         return blank;
     }
@@ -372,14 +377,14 @@ bool KisPaletteModel::addColorSetEntry(KoColorSetEntry entry, QString groupName)
 
 bool KisPaletteModel::removeEntry(QModelIndex index, bool keepColors)
 {
-    QStringList entryList =  qVariantValue<QStringList>(index.data(RetrieveEntryRole));
+    QStringList entryList =  qvariant_cast<QStringList>(index.data(RetrieveEntryRole));
     if (entryList.empty()) {
         return false;
     }
     QString groupName = entryList.at(0);
     quint32 indexInGroup = entryList.at(1).toUInt();
 
-    if (qVariantValue<bool>(index.data(IsHeaderRole))==false) {
+    if (qvariant_cast<bool>(index.data(IsHeaderRole))==false) {
         if (index.column()-1<0
                 && m_colorSet->nColorsGroup(groupName)%columnCount() <1
                 && index.row()-1>0
@@ -459,7 +464,7 @@ bool KisPaletteModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
             stream >> groupName;
             QModelIndex index = this->index(endRow, 0);
             if (index.isValid()) {
-                QStringList entryList = qVariantValue<QStringList>(index.data(RetrieveEntryRole));
+                QStringList entryList = qvariant_cast<QStringList>(index.data(RetrieveEntryRole));
                 QString groupDroppedOn = QString();
                 if (!entryList.isEmpty()) {
                     groupDroppedOn = entryList.at(0);
@@ -500,7 +505,7 @@ bool KisPaletteModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
             }
 
             QModelIndex index = this->index(endRow, endColumn);
-            if (qVariantValue<bool>(index.data(IsHeaderRole))){
+            if (qvariant_cast<bool>(index.data(IsHeaderRole))){
                 endRow+=1;
             }
             if (index.isValid()) {
@@ -531,7 +536,7 @@ bool KisPaletteModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
                 } else {
                     beginInsertRows(QModelIndex(), endRow, endRow);
                 }
-                QStringList entryList = qVariantValue<QStringList>(index.data(RetrieveEntryRole));
+                QStringList entryList = qvariant_cast<QStringList>(index.data(RetrieveEntryRole));
                 QString entryInGroup = "0";
                 QString groupName = QString();
                 if (!entryList.isEmpty()) {
@@ -541,7 +546,7 @@ bool KisPaletteModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
 
                 int location = entryInGroup.toInt();
                 // Insert the entry
-                if (groupName==oldGroupName && qVariantValue<bool>(index.data(IsHeaderRole))==true) {
+                if (groupName==oldGroupName && qvariant_cast<bool>(index.data(IsHeaderRole))==true) {
                     groupName=QString();
                     location=m_colorSet->nColorsGroup();
                 }
@@ -583,9 +588,9 @@ QMimeData *KisPaletteModel::mimeData(const QModelIndexList &indexes) const
     //Q_FOREACH(const QModelIndex &index, indexes) {
     QModelIndex index = indexes.last();
     if (index.isValid()) {
-        if (qVariantValue<bool>(index.data(IsHeaderRole))==false) {
+        if (qvariant_cast<bool>(index.data(IsHeaderRole))==false) {
             KoColorSetEntry entry = colorSetEntryFromIndex(index);
-            QStringList entryList = qVariantValue<QStringList>(index.data(RetrieveEntryRole));
+            QStringList entryList = qvariant_cast<QStringList>(index.data(RetrieveEntryRole));
             QString groupName = QString();
             int indexInGroup = 0;
             if (!entryList.isEmpty()) {
@@ -608,7 +613,7 @@ QMimeData *KisPaletteModel::mimeData(const QModelIndexList &indexes) const
                    << doc.toString();
         } else {
             mimeTypeName = "krita/x-colorsetgroup";
-            QStringList entryList = qVariantValue<QStringList>(index.data(RetrieveEntryRole));
+            QStringList entryList = qvariant_cast<QStringList>(index.data(RetrieveEntryRole));
             QString groupName = QString();
             if (!entryList.isEmpty()) {
                 groupName = entryList.at(0);

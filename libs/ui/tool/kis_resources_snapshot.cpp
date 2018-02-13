@@ -50,7 +50,7 @@ struct KisResourcesSnapshot::Private {
     KisDefaultBoundsBaseSP bounds;
     KoColor currentFgColor;
     KoColor currentBgColor;
-    KoPattern *currentPattern;
+    KoPattern *currentPattern = 0;
     KoAbstractGradient *currentGradient;
     KisPaintOpPresetSP currentPaintOpPreset;
     KisNodeSP currentNode;
@@ -58,19 +58,19 @@ struct KisResourcesSnapshot::Private {
     KisFilterConfigurationSP currentGenerator;
 
     QPointF axesCenter;
-    bool mirrorMaskHorizontal;
-    bool mirrorMaskVertical;
+    bool mirrorMaskHorizontal = false;
+    bool mirrorMaskVertical = false;
 
-    quint8 opacity;
-    QString compositeOpId;
+    quint8 opacity = OPACITY_OPAQUE_U8;
+    QString compositeOpId = COMPOSITE_OVER;
     const KoCompositeOp *compositeOp;
 
-    KisPainter::StrokeStyle strokeStyle;
-    KisPainter::FillStyle fillStyle;
+    KisPainter::StrokeStyle strokeStyle = KisPainter::StrokeStyleBrush;
+    KisPainter::FillStyle fillStyle = KisPainter::FillStyleForegroundColor;
 
-    bool globalAlphaLock;
-    qreal effectiveZoom;
-    bool presetAllowsLod;
+    bool globalAlphaLock = false;
+    qreal effectiveZoom = 1.0;
+    bool presetAllowsLod = false;
     KisSelectionSP selectionOverride;
 };
 
@@ -130,7 +130,16 @@ KisResourcesSnapshot::KisResourcesSnapshot(KisImageSP image, KisNodeSP currentNo
 
     m_d->globalAlphaLock = resourceManager->resource(KisCanvasResourceProvider::GlobalAlphaLock).toBool();
     m_d->effectiveZoom = resourceManager->resource(KisCanvasResourceProvider::EffectiveZoom).toDouble();
-    m_d->presetAllowsLod = resourceManager->resource(KisCanvasResourceProvider::PresetAllowsLod).toBool();
+
+
+    m_d->presetAllowsLod = true;
+
+    if (m_d->currentPaintOpPreset) {
+        m_d->presetAllowsLod =
+            KisPaintOpSettings::isLodUserAllowed(m_d->currentPaintOpPreset->settings()) &&
+            (!m_d->currentPaintOpPreset->settings()->lodSizeThresholdSupported() ||
+             m_d->currentPaintOpPreset->settings()->lodSizeThreshold() <= m_d->currentPaintOpPreset->settings()->paintOpSize());
+    }
 }
 
 KisResourcesSnapshot::KisResourcesSnapshot(KisImageSP image, KisNodeSP currentNode, KisDefaultBoundsBaseSP bounds)
@@ -198,6 +207,30 @@ void KisResourcesSnapshot::setupPainter(KisPainter* painter)
     painter->setPaintOpPreset(m_d->currentPaintOpPreset, m_d->currentNode, m_d->image);
 }
 
+void KisResourcesSnapshot::setupMaskingBrushPainter(KisPainter *painter)
+{
+    KIS_SAFE_ASSERT_RECOVER_RETURN(painter->device());
+    KIS_SAFE_ASSERT_RECOVER_RETURN(m_d->currentPaintOpPreset->hasMaskingPreset());
+
+    painter->setPaintColor(KoColor(Qt::white, painter->device()->colorSpace()));
+    painter->setBackgroundColor(KoColor(Qt::black, painter->device()->colorSpace()));
+
+    painter->setOpacity(OPACITY_OPAQUE_U8);
+    painter->setChannelFlags(QBitArray());
+
+    // masked brush always paints in indirect mode
+    painter->setCompositeOp(COMPOSITE_ALPHA_DARKEN);
+
+    painter->setMirrorInformation(m_d->axesCenter, m_d->mirrorMaskHorizontal, m_d->mirrorMaskVertical);
+
+    /**
+     * The paintOp should be initialized the last, because it may
+     * ask the painter for some options while initialization
+     */
+    painter->setPaintOpPreset(m_d->currentPaintOpPreset->createMaskingPreset(),
+                              m_d->currentNode, m_d->image);
+}
+
 void KisResourcesSnapshot::setupPaintAction(KisRecordedPaintAction *action)
 {
     action->setPaintOpPreset(m_d->currentPaintOpPreset);
@@ -262,6 +295,11 @@ bool KisResourcesSnapshot::needsIndirectPainting() const
 QString KisResourcesSnapshot::indirectPaintingCompositeOp() const
 {
     return m_d->currentPaintOpPreset->settings()->indirectPaintingCompositeOp();
+}
+
+bool KisResourcesSnapshot::needsMaskingBrushRendering() const
+{
+    return m_d->currentPaintOpPreset && m_d->currentPaintOpPreset->hasMaskingPreset();
 }
 
 KisSelectionSP KisResourcesSnapshot::activeSelection() const
@@ -371,6 +409,11 @@ qreal KisResourcesSnapshot::effectiveZoom() const
 bool KisResourcesSnapshot::presetAllowsLod() const
 {
     return m_d->presetAllowsLod;
+}
+
+bool KisResourcesSnapshot::presetNeedsAsynchronousUpdates() const
+{
+    return m_d->currentPaintOpPreset && m_d->currentPaintOpPreset->settings()->needsAsynchronousUpdates();
 }
 
 void KisResourcesSnapshot::setFGColorOverride(const KoColor &color)

@@ -68,6 +68,9 @@
 #include <KoShapeShadow.h>
 #include <KoShapeShadowCommand.h>
 
+#include "SvgWriter.h"
+#include "SvgParser.h"
+
 #include <kis_types.h>
 #include <kis_image.h>
 #include "kis_default_bounds.h"
@@ -78,6 +81,7 @@
 #include "kis_node_visitor.h"
 #include "kis_processing_visitor.h"
 #include "kis_effect_mask.h"
+#include "commands/KoShapeReorderCommand.h"
 
 #include <SimpleShapeContainerModel.h>
 class ShapeLayerContainerModel : public SimpleShapeContainerModel
@@ -91,7 +95,7 @@ public:
         SimpleShapeContainerModel::add(child);
 
         /**
-         * The shape is always added with the absolute transformation set appropiately.
+         * The shape is always added with the absolute transformation set appropriately.
          * Here we should just squeeze it into the layer's transformation.
          */
         KIS_SAFE_ASSERT_RECOVER_NOOP(inheritsTransform(child));
@@ -165,15 +169,19 @@ KisShapeLayer::KisShapeLayer(const KisShapeLayer& _rhs, KoShapeBasedDocumentBase
         , KoShapeLayer(new ShapeLayerContainerModel(this)) //no _rhs here otherwise both layer have the same KoShapeContainerModel
         , m_d(new Private())
 {
-    // Make sure our new layer is visible otherwise the shapes cannot be painted.
-    setVisible(true);
-
     // copy the projection to avoid extra round of updates!
     initShapeLayer(controller, _rhs.m_d->paintDevice);
+
+    /**
+     * The transformaitons of the added shapes are automatically merged into the transformation
+     * of the layer, so we should apply this extra transform separately
+     */
+    const QTransform thisInvertedTransform = this->absoluteTransformation(0).inverted();
 
     Q_FOREACH (KoShape *shape, _rhs.shapes()) {
         KoShape *clonedShape = shape->cloneShape();
         KIS_SAFE_ASSERT_RECOVER(clonedShape) { continue; }
+        clonedShape->setTransformation(shape->absoluteTransformation(0) * thisInvertedTransform);
         addShape(clonedShape);
     }
 }
@@ -188,18 +196,39 @@ KisShapeLayer::KisShapeLayer(const KisShapeLayer& _rhs, const KisShapeLayer &_ad
 
     initShapeLayer(_rhs.m_d->controller);
 
+    /**
+     * With current implementation this matrix will always be an identity, because
+     * we do not copy the transformation from any of the source layers. But we should
+     * handle this anyway, to not be caught by this in the future.
+     */
+    const QTransform thisInvertedTransform = this->absoluteTransformation(0).inverted();
+
+    QList<KoShape *> shapesAbove;
+    QList<KoShape *> shapesBelow;
+
     // copy in _rhs's shapes
     Q_FOREACH (KoShape *shape, _rhs.shapes()) {
         KoShape *clonedShape = shape->cloneShape();
         KIS_SAFE_ASSERT_RECOVER(clonedShape) { continue; }
-        addShape(clonedShape);
+        clonedShape->setTransformation(shape->absoluteTransformation(0) * thisInvertedTransform);
+        shapesBelow.append(clonedShape);
     }
 
     // copy in _addShapes's shapes
     Q_FOREACH (KoShape *shape, _addShapes.shapes()) {
         KoShape *clonedShape = shape->cloneShape();
         KIS_SAFE_ASSERT_RECOVER(clonedShape) { continue; }
-        addShape(clonedShape);
+        clonedShape->setTransformation(shape->absoluteTransformation(0) * thisInvertedTransform);
+        shapesAbove.append(clonedShape);
+    }
+
+    QList<KoShapeReorderCommand::IndexedShape> shapes =
+        KoShapeReorderCommand::mergeDownShapes(shapesBelow, shapesAbove);
+    KoShapeReorderCommand cmd(shapes);
+    cmd.redo();
+
+    Q_FOREACH (KoShape *shape, shapesBelow + shapesAbove) {
+        addShape(shape);
     }
 }
 
@@ -401,8 +430,23 @@ bool KisShapeLayer::visible(bool recursive) const
 
 void KisShapeLayer::setVisible(bool visible, bool isLoading)
 {
+    KoShapeLayer::setVisible(visible);
     KisExternalLayer::setVisible(visible, isLoading);
 }
+
+void KisShapeLayer::setUserLocked(bool value)
+{
+    KoShapeLayer::setGeometryProtected(value);
+    KisExternalLayer::setUserLocked(value);
+}
+
+bool KisShapeLayer::isShapeEditable(bool recursive) const
+{
+    return KoShapeLayer::isShapeEditable(recursive) && isEditable(true);
+}
+
+// we do not override KoShape::setGeometryProtected() as we consider
+// the user not being able to access the layer shape from Krita UI!
 
 void KisShapeLayer::forceUpdateTimedNode()
 {
@@ -411,7 +455,6 @@ void KisShapeLayer::forceUpdateTimedNode()
 
 #include "SvgWriter.h"
 #include "SvgParser.h"
-#include <QXmlStreamReader>
 
 bool KisShapeLayer::saveShapesToStore(KoStore *store, QList<KoShape *> shapes, const QSizeF &sizeInPt)
 {

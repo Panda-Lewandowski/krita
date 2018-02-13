@@ -204,6 +204,18 @@
       <isCheckable>false</isCheckable>
       <statusTip></statusTip>
     </Action>
+    <Action name="ruler_pixel_multiple2">
+      <icon></icon>
+      <text>Use multiple of 2 for pixel scale</text>
+      <whatsThis>Use multiple of 2 for pixel scale</whatsThis>
+      <toolTip>Use multiple of 2 for pixel scale</toolTip>
+      <iconText>Use multiple of 2 for pixel scale</iconText>
+      <activationFlags>1</activationFlags>
+      <activationConditions>0</activationConditions>
+      <shortcut></shortcut>
+      <isCheckable>true</isCheckable>
+      <statusTip></statusTip>
+    </Action>
   </Actions>
 
   <Actions category="Painting">
@@ -1275,16 +1287,6 @@
       <isCheckable>false</isCheckable>
       <statusTip></statusTip>
     </Action>
-    <Action name="ReferencesTool">
-      <icon></icon>
-      <text>References</text>
-      <whatsThis></whatsThis>
-      <toolTip>References</toolTip>
-      <iconText>References</iconText>
-      <shortcut></shortcut>
-      <isCheckable>false</isCheckable>
-      <statusTip></statusTip>
-    </Action>
     <Action name="KritaShape/KisToolRectangle">
       <icon></icon>
       <text>Rectangle Tool</text>
@@ -1622,12 +1624,12 @@
       <isCheckable>false</isCheckable>
       <statusTip></statusTip>
     </Action>
-    <Action name="KisRulerAssistantTool">
+    <Action name="KisAssistantTool">
       <icon></icon>
-      <text>Ruler assistant editor tool</text>
+      <text>Assistant Tool</text>
       <whatsThis></whatsThis>
-      <toolTip>Ruler assistant editor tool</toolTip>
-      <iconText>Ruler assistant editor tool</iconText>
+      <toolTip>Assistant Tool</toolTip>
+      <iconText>Assistant Tool</iconText>
       <shortcut></shortcut>
       <isCheckable>false</isCheckable>
       <statusTip></statusTip>
@@ -2586,6 +2588,18 @@
       <isCheckable>false</isCheckable>
       <statusTip></statusTip>
     </Action>
+        <Action name="save_vector_node_to_svg">
+      <icon>document-save</icon>
+      <text>Save Vector Layer as SVG...</text>
+      <whatsThis></whatsThis>
+      <toolTip>Save Vector Layer as SVG</toolTip>
+      <iconText>Save Vector Layer as SVG</iconText>
+      <activationFlags>1000</activationFlags>
+      <activationConditions>0</activationConditions>
+      <shortcut></shortcut>
+      <isCheckable>false</isCheckable>
+      <statusTip></statusTip>
+    </Action>
     <Action name="save_groups_as_images">
       <icon>document-save</icon>
       <text>Save &amp;Group Layers...</text>
@@ -2604,6 +2618,18 @@
       <whatsThis></whatsThis>
       <toolTip>Convert child layers into animation frames</toolTip>
       <iconText>Convert child layers into animation frames</iconText>
+      <activationFlags>100000</activationFlags>
+      <activationConditions>0</activationConditions>
+      <shortcut></shortcut>
+      <isCheckable>false</isCheckable>
+      <statusTip></statusTip>
+    </Action>
+    <Action name="convert_layer_to_file_layer">
+      <icon>fileLayer</icon>
+      <text>to &amp;File Layer</text>
+      <whatsThis></whatsThis>
+      <toolTip>Saves out the layers into a new image and then references that image.</toolTip>
+      <iconText>Convert to File Layer</iconText>
       <activationFlags>100000</activationFlags>
       <activationConditions>0</activationConditions>
       <shortcut></shortcut>

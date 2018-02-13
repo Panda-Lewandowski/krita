@@ -59,11 +59,14 @@ public:
     {
     }
 
-    void requestProjectionUpdate(KisNode *node, const QRect& rect, bool resetAnimationCache) override {
-        KisNodeGraphListener::requestProjectionUpdate(node, rect, resetAnimationCache);
+    void requestProjectionUpdate(KisNode *node, const QVector<QRect> &rects, bool resetAnimationCache) override {
+        KisNodeGraphListener::requestProjectionUpdate(node, rects, resetAnimationCache);
 
         QMutexLocker locker(&m_lock);
-        m_scratchPad->imageUpdated(rect);
+
+        Q_FOREACH (const QRect &rc, rects) {
+            m_scratchPad->imageUpdated(rc);
+        }
     }
 
 private:
@@ -398,7 +401,7 @@ void KisScratchPad::setPresetImage(const QImage& image)
 void KisScratchPad::paintCustomImage(const QImage& loadedImage)
 {
     // this is 99% copied from the normal paintPresetImage()
-    // we dont' want to save over the preset image, so we don't
+    // we don't want to save over the preset image, so we don't
     // want to store it in the m_presetImage
     if(!m_paintLayer) return;
     KisPaintDeviceSP paintDevice = m_paintLayer->paintDevice();

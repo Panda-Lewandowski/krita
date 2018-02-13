@@ -28,6 +28,8 @@
 #include <QApplication>
 #include <QByteArray>
 #include <QCloseEvent>
+#include <QStandardPaths>
+#include <QDesktopServices>
 #include <QDesktopServices>
 #include <QDesktopWidget>
 #include <QDialog>
@@ -180,6 +182,8 @@ public:
         , windowMapper(new QSignalMapper(parent))
         , documentMapper(new QSignalMapper(parent))
     {
+        mdiArea->setTabsMovable(true);
+        mdiArea->setActivationOrder(QMdiArea::ActivationHistoryOrder);
     }
 
     ~Private() {
@@ -219,6 +223,7 @@ public:
     KisAction *mdiPreviousWindow {0};
     KisAction *toggleDockers {0};
     KisAction *toggleDockerTitleBars {0};
+    KisAction *fullScreenMode {0};
 
     KisAction *expandingSpacers[2];
 
@@ -615,6 +620,7 @@ void KisMainWindow::slotPreferences()
 {
     if (KisDlgPreferences::editPreferences()) {
         KisConfigNotifier::instance()->notifyConfigChanged();
+        KisConfigNotifier::instance()->notifyPixelGridModeChanged();
         KisUpdateSchedulerConfigNotifier::instance()->notifyConfigChanged();
 
         // XXX: should this be changed for the views in other windows as well?
@@ -666,7 +672,6 @@ void KisMainWindow::setReadWrite(bool readwrite)
 
 void KisMainWindow::addRecentURL(const QUrl &url)
 {
-    dbgUI << "KisMainWindow::addRecentURL url=" << url.toDisplayString();
     // Add entry to recent documents list
     // (call coming from KisDocument because it must work with cmd line, template dlg, file/open, etc.)
     if (!url.isEmpty()) {
@@ -674,9 +679,11 @@ void KisMainWindow::addRecentURL(const QUrl &url)
         if (url.isLocalFile()) {
             QString path = url.adjusted(QUrl::StripTrailingSlash).toLocalFile();
             const QStringList tmpDirs = KoResourcePaths::resourceDirs("tmp");
-            for (QStringList::ConstIterator it = tmpDirs.begin() ; ok && it != tmpDirs.end() ; ++it)
-                if (path.contains(*it))
+            for (QStringList::ConstIterator it = tmpDirs.begin() ; ok && it != tmpDirs.end() ; ++it) {
+                if (path.contains(*it)) {
                     ok = false; // it's in the tmp resource
+                }
+            }
 #ifdef HAVE_KIO
             if (ok) {
                 KRecentDocument::add(QUrl::fromLocalFile(path));
@@ -705,16 +712,7 @@ void KisMainWindow::saveRecentFiles()
 
     // Tell all windows to reload their list, after saving
     // Doesn't work multi-process, but it's a start
-    Q_FOREACH (KMainWindow* window, KMainWindow::memberList()) {
-        /**
-         * FIXME: this is a hacking approach of reloading the updated recent files list.
-         * Sometimes, the result of reading from KConfig right after doing 'sync()' still
-         * returns old values of the recent files. Reading the same files a bit later
-         * returns correct "updated" files. I couldn't find the cause of it (DK).
-         */
-
-        KisMainWindow *mw = static_cast<KisMainWindow *>(window);
-
+    Q_FOREACH (KisMainWindow *mw, KisPart::instance()->mainWindows()) {
         if (mw != this) {
             mw->reloadRecentFileList();
         }
@@ -723,7 +721,7 @@ void KisMainWindow::saveRecentFiles()
 
 void KisMainWindow::reloadRecentFileList()
 {
-    d->recentFiles->loadEntries( KSharedConfig::openConfig()->group("RecentFiles"));
+    d->recentFiles->loadEntries(KSharedConfig::openConfig()->group("RecentFiles"));
 }
 
 void KisMainWindow::updateCaption()
@@ -869,7 +867,7 @@ KisView* KisMainWindow::addViewAndNotifyLoadingCompleted(KisDocument *document)
 QStringList KisMainWindow::showOpenFileDialog(bool isImporting)
 {
     KoFileDialog dialog(this, KoFileDialog::ImportFiles, "OpenDocument");
-    dialog.setDefaultDir(QDesktopServices::storageLocation(QDesktopServices::PicturesLocation));
+    dialog.setDefaultDir(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation));
     dialog.setMimeTypeFilters(KisImportExportManager::mimeFilter(KisImportExportManager::Import));
     dialog.setCaption(isImporting ? i18n("Import Images") : i18n("Open Images"));
 
@@ -1051,7 +1049,7 @@ bool KisMainWindow::saveDocument(KisDocument *document, bool saveas, bool isExpo
             }
             // If that is empty, too, use the Pictures location.
             if (proposedPath.isEmpty()) {
-                proposedPath = QDesktopServices::storageLocation(QDesktopServices::PicturesLocation);
+                proposedPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
             }
             // But only use that if the suggestedUrl, that is, the document's own url is empty, otherwise
             // open the location where the document currently is.
@@ -1084,7 +1082,7 @@ bool KisMainWindow::saveDocument(KisDocument *document, bool saveas, bool isExpo
 
         QByteArray outputFormat = nativeFormat;
 
-        QString outputFormatString = KisMimeDatabase::mimeTypeForFile(newURL.toLocalFile());
+        QString outputFormatString = KisMimeDatabase::mimeTypeForFile(newURL.toLocalFile(), false);
         outputFormat = outputFormatString.toLatin1();
 
 
@@ -1198,7 +1196,7 @@ void KisMainWindow::closeEvent(QCloseEvent *e)
     }
     KConfigGroup cfg( KSharedConfig::openConfig(), "MainWindow");
     cfg.writeEntry("ko_geometry", saveGeometry().toBase64());
-    cfg.writeEntry("ko_windowstate", saveState().toBase64());
+    cfg.writeEntry("State", saveState().toBase64());
 
     {
         KConfigGroup group( KSharedConfig::openConfig(), "theme");
@@ -1248,7 +1246,7 @@ void KisMainWindow::saveWindowSettings()
         KConfigGroup group =  KSharedConfig::openConfig()->group("krita");
         saveMainWindowSettings(group);
 
-        // Save collapsable state of dock widgets
+        // Save collapsible state of dock widgets
         for (QMap<QString, QDockWidget*>::const_iterator i = d->dockWidgetsMap.constBegin();
              i != d->dockWidgetsMap.constEnd(); ++i) {
             if (i.value()->widget()) {
@@ -1334,6 +1332,22 @@ void KisMainWindow::dragLeaveEvent(QDragLeaveEvent * /*event*/)
     }
 }
 
+void KisMainWindow::mouseReleaseEvent(QMouseEvent *event)
+{
+    /**
+     * This ensures people who do not understand that you
+     * need to make a canvas first, will find the new image
+     * dialog on click.
+     */
+    if (centralWidget()->geometry().contains(event->pos())
+            && KisPart::instance()->documents().size()==0 && event->button() == Qt::LeftButton) {
+        this->slotFileNew();
+        event->accept();
+    } else {
+        event->ignore();
+    }
+}
+
 void KisMainWindow::switchTab(int index)
 {
     QTabBar *tabBar = d->findTabBarHACK();
@@ -1348,6 +1362,8 @@ void KisMainWindow::slotFileNew()
 
     KisOpenPane *startupWidget = new KisOpenPane(this, mimeFilter, QStringLiteral("templates/"));
     startupWidget->setWindowModality(Qt::WindowModal);
+    startupWidget->setWindowTitle(i18n("Create new document"));
+
 
     KisConfig cfg;
 
@@ -1622,7 +1638,7 @@ KisPrintJob* KisMainWindow::exportToPdf(QString pdfFileName)
         KConfigGroup group =  KSharedConfig::openConfig()->group("File Dialogs");
         QString defaultDir = group.readEntry("SavePdfDialog");
         if (defaultDir.isEmpty())
-            defaultDir = QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation);
+            defaultDir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
         QUrl startUrl = QUrl::fromLocalFile(defaultDir);
         KisDocument* pDoc = d->activeView->document();
         /** if document has a file name, take file name and replace extension with .pdf */
@@ -1828,7 +1844,7 @@ QDockWidget* KisMainWindow::createDockWidget(KoDockFactoryBase* factory)
 
         KoDockWidgetTitleBar *titleBar = dynamic_cast<KoDockWidgetTitleBar*>(dockWidget->titleBarWidget());
 
-        // Check if the dock widget is supposed to be collapsable
+        // Check if the dock widget is supposed to be collapsible
         if (!dockWidget->titleBarWidget()) {
             titleBar = new KoDockWidgetTitleBar(dockWidget);
             dockWidget->setTitleBarWidget(titleBar);
@@ -2300,7 +2316,7 @@ void KisMainWindow::createActions()
     actionManager->createStandardAction(KStandardAction::Open, this, SLOT(slotFileOpen()));
     actionManager->createStandardAction(KStandardAction::Quit, this, SLOT(slotFileQuit()));
     actionManager->createStandardAction(KStandardAction::ConfigureToolbars, this, SLOT(slotConfigureToolbars()));
-    actionManager->createStandardAction(KStandardAction::FullScreen, this, SLOT(viewFullscreen(bool)));
+    d->fullScreenMode = actionManager->createStandardAction(KStandardAction::FullScreen, this, SLOT(viewFullscreen(bool)));
 
     d->recentFiles = KStandardAction::openRecent(this, SLOT(slotFileOpenRecent(QUrl)), actionCollection());
     connect(d->recentFiles, SIGNAL(recentListCleared()), this, SLOT(saveRecentFiles()));
@@ -2453,7 +2469,9 @@ void KisMainWindow::initializeGeometry()
         move(x,y);
         setGeometry(geometry().x(), geometry().y(), w, h);
     }
-    restoreWorkspace(QByteArray::fromBase64(cfg.readEntry("ko_windowstate", QByteArray())));
+    restoreWorkspace(QByteArray::fromBase64(cfg.readEntry("State", QByteArray())));
+
+    d->fullScreenMode->setChecked(isFullScreen());
 }
 
 void KisMainWindow::showManual()

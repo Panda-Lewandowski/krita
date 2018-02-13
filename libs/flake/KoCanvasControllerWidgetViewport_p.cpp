@@ -111,7 +111,7 @@ void Viewport::handleDragEnterEvent(QDragEnterEvent *event)
     // only allow dropping when active layer is editable
     KoSelection *selection = m_parent->canvas()->shapeManager()->selection();
     KoShapeLayer *activeLayer = selection->activeLayer();
-    if (activeLayer && (!activeLayer->isEditable() || activeLayer->isGeometryProtected())) {
+    if (activeLayer && (!activeLayer->isShapeEditable() || activeLayer->isGeometryProtected())) {
         event->ignore();
         return;
     }
@@ -188,7 +188,20 @@ void Viewport::handleDragEnterEvent(QDragEnterEvent *event)
         Q_ASSERT(m_draggedShape);
         if (!m_draggedShape) return;
 
-        m_draggedShape->setZIndex(KoShapePrivate::MaxZIndex);
+        // calculate maximum existing shape zIndex
+
+        int pasteZIndex = 0;
+
+        {
+            QList<KoShape*> allShapes = m_parent->canvas()->shapeManager()->topLevelShapes();
+
+            if (!allShapes.isEmpty()) {
+                std::sort(allShapes.begin(), allShapes.end(), KoShape::compareShapeZIndex);
+                pasteZIndex = qMin(int(KoShape::maxZIndex), allShapes.last()->zIndex() + 1);
+            }
+        }
+
+        m_draggedShape->setZIndex(pasteZIndex);
         m_draggedShape->setAbsolutePosition(correctPosition(event->pos()));
 
         m_parent->canvas()->shapeManager()->addShape(m_draggedShape);
@@ -213,7 +226,7 @@ void Viewport::handleDropEvent(QDropEvent *event)
     m_draggedShape->setAbsolutePosition(newPos);
 
 
-    KUndo2Command * cmd = m_parent->canvas()->shapeController()->addShape(m_draggedShape);
+    KUndo2Command * cmd = m_parent->canvas()->shapeController()->addShape(m_draggedShape, 0);
 
     if (cmd) {
         m_parent->canvas()->addCommand(cmd);

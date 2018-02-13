@@ -239,8 +239,7 @@ class comics_template_create(QDialog):
         mT = self.marginTopUnit.pixelsForUnit(self.marginTop.value(), self.DPI.value())
         mB = self.marginBottomUnit.pixelsForUnit(self.marginBottom.value(), self.DPI.value())
 
-        template = Application.createDocument((wBase + bL + bR), (hBase + bT + bB), self.templateName.text(), "RGBA", "U8", "sRGB built-in")
-        template.setResolution(self.DPI.value())
+        template = Application.createDocument((wBase + bL + bR), (hBase + bT + bB), self.templateName.text(), "RGBA", "U8", "sRGB built-in", self.DPI.value())
 
         backgroundNode = template.activeNode()
         backgroundNode.setName(i18n("Background"))
@@ -272,12 +271,12 @@ class comics_template_create(QDialog):
         template.setGuidesLocked(True)
 
         self.urlSavedTemplate = os.path.join(self.templateDirectory, self.templateName.text() + ".kra")
-        succes = template.exportImage(self.urlSavedTemplate, InfoObject())
+        success = template.exportImage(self.urlSavedTemplate, InfoObject())
         print("CPMT: Template", self.templateName.text(), "made and saved.")
         template.waitForDone()
         template.close()
 
-        return succes
+        return success
 
     def url(self):
         return self.urlSavedTemplate

@@ -41,7 +41,7 @@ void parseElement(const QDomElement &el, QIODevice *device, bool forceTypeInfo =
     QString type = el.attribute("type", "<unknown>");
     QString key = el.attribute("key", "");
 
-    // should be filtered on a heigher level
+    // should be filtered on a higher level
     KIS_ASSERT_RECOVER_RETURN(key != "Patterns");
 
     if (type == "Descriptor") {
@@ -152,7 +152,7 @@ void writeFileImpl(QIODevice *device, const QDomDocument &doc)
 
     {
         QString signature("8BSL");
-        if (!device->write(signature.toAscii().data(), 4)) {
+        if (!device->write(signature.toLatin1().data(), 4)) {
             throw ASLWriteException("Failed to write ASL signature");
         }
     }

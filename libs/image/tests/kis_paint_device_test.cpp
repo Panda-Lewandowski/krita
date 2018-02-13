@@ -1236,7 +1236,7 @@ void testWrappedLineIteratorReadMoreThanBounds(QString testName)
         }
     }
 
-    // test rect doesn't fit the wrap rect in both dimentions
+    // test rect doesn't fit the wrap rect in both dimensions
     const QRect &rect(bounds.adjusted(-6,-6,8,8));
     KisRandomAccessorSP dstIt = dst->createRandomAccessorNG(rect.x(), rect.y());
     IteratorSP it = createIterator<IteratorSP>(dev, rect);
@@ -1420,11 +1420,11 @@ void fillGradientDevice(KisPaintDeviceSP dev, const QRect &rect, bool flat = fal
     } else {
         // fill device with a gradient
         KisSequentialIterator it(dev, rect);
-        do {
+        while (it.nextPixel()) {
             QColor c((10 * it.x()) & 0xFF, (10 * it.y()) & 0xFF, 0, 255);
             KoColor color(c, dev->colorSpace());
             memcpy(it.rawData(), color.data(), dev->pixelSize());
-        } while (it.nextPixel());
+        }
     }
 }
 #include "kis_lod_transform.h"
@@ -2259,7 +2259,7 @@ void KisPaintDeviceTest::testCompositionAssociativity()
         }
 
         qDebug("Errors for op %25s err rate %7.2f var %7.2f max %7.2f",
-               op->id().toAscii().data(),
+               op->id().toLatin1().data(),
                (qreal(count(accum)) / (4 * numIterations)),
                variance(accum),
                count(accum) > 0 ? (max)(accum) : 0);

@@ -28,6 +28,8 @@
 #include "KoShapeContainer.h"
 #include "KoShapeManager.h"
 #include <KoRTree.h>
+#include "kis_thread_safe_signal_compressor.h"
+
 
 class KoCanvasBase;
 class KoShapeGroup;
@@ -42,8 +44,10 @@ public:
           canvas(c),
           tree(4, 2),
           q(shapeManager),
-          shapeInterface(shapeManager)
+          shapeInterface(shapeManager),
+          updateTreeCompressor(100, KisSignalCompressor::FIRST_INACTIVE)
     {
+        connect(&updateTreeCompressor, SIGNAL(timeout()), q, SLOT(updateTree()));
     }
 
     ~Private() {
@@ -61,6 +65,11 @@ public:
      * detection.
      */
     bool shapeUsedInRenderingTree(KoShape *shape);
+
+    /**
+     * Recursively detach the shapes from this shape manager
+     */
+    void unlinkFromShapesRecursively(const QList<KoShape *> &shapes);
 
     /**
      * Recursively paints the given group shape to the specified painter
@@ -102,7 +111,6 @@ public:
     };
 
     QList<KoShape *> shapes;
-    QList<KoShape *> additionalShapes; // these are shapes that are only handled for updates
     KoSelection *selection;
     KoCanvasBase *canvas;
     KoRTree<KoShape *> tree;
@@ -110,6 +118,7 @@ public:
     QHash<KoShape*, int> shapeIndexesBeforeUpdate;
     KoShapeManager *q;
     KoShapeManager::ShapeInterface shapeInterface;
+    KisThreadSafeSignalCompressor updateTreeCompressor;
 };
 
 #endif

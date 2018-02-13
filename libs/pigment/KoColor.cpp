@@ -33,21 +33,41 @@
 #include "KoColorSpaceRegistry.h"
 #include "KoChannelInfo.h"
 
-const KoColor *KoColor::s_prefab = nullptr;
 
-void KoColor::init()
+#include <QGlobalStatic>
+
+#include <KoConfig.h>
+#ifdef HAVE_OPENEXR
+#include <half.h>
+#endif
+
+namespace {
+
+struct DefaultKoColorInitializer
 {
-	KIS_ASSERT(s_prefab == nullptr);
-	KoColor *prefab = new KoColor(KoColorSpaceRegistry::instance()->rgb16(0));
-	prefab->m_colorSpace->fromQColor(Qt::black, prefab->m_data);
-	prefab->m_colorSpace->setOpacity(prefab->m_data, OPACITY_OPAQUE_U8, 1);
-	s_prefab = prefab;
+    DefaultKoColorInitializer() {
+        const KoColorSpace *defaultColorSpace = KoColorSpaceRegistry::instance()->rgb16(0);
+        KIS_ASSERT(defaultColorSpace);
+
+        value = new KoColor(Qt::black, defaultColorSpace);
 #ifndef NODEBUG
 #ifndef QT_NO_DEBUG
-    // warn about rather expensive checks in assertPermanentColorspace().
-	qWarning() << "KoColor debug runtime checks are active.";
+        // warn about rather expensive checks in assertPermanentColorspace().
+        qWarning() << "KoColor debug runtime checks are active.";
 #endif
 #endif
+    }
+
+    KoColor *value = 0;
+};
+
+Q_GLOBAL_STATIC(DefaultKoColorInitializer, s_defaultKoColor);
+
+}
+
+
+KoColor::KoColor() {
+    *this = *s_defaultKoColor->value;
 }
 
 KoColor::KoColor(const KoColorSpace * colorSpace)
@@ -121,6 +141,20 @@ void KoColor::convertTo(const KoColorSpace * cs)
               KoColorConversionTransformation::internalConversionFlags());
 }
 
+KoColor KoColor::convertedTo(const KoColorSpace *cs, KoColorConversionTransformation::Intent renderingIntent, KoColorConversionTransformation::ConversionFlags conversionFlags) const
+{
+    KoColor result(*this);
+    result.convertTo(cs, renderingIntent, conversionFlags);
+    return result;
+}
+
+KoColor KoColor::convertedTo(const KoColorSpace *cs) const
+{
+    return convertedTo(cs,
+                       KoColorConversionTransformation::internalRenderingIntent(),
+                       KoColorConversionTransformation::internalConversionFlags());
+}
+
 void KoColor::setProfile(const KoColorProfile *profile)
 {
     const KoColorSpace *dstColorSpace =
@@ -162,6 +196,54 @@ void KoColor::fromQColor(const QColor& c)
     if (m_colorSpace) {
         m_colorSpace->fromQColor(c, m_data);
     }
+}
+
+void KoColor::subtract(const KoColor &value)
+{
+    KIS_SAFE_ASSERT_RECOVER_RETURN(*m_colorSpace == *value.colorSpace());
+
+    QVector<float> channels1(m_colorSpace->channelCount());
+    QVector<float> channels2(m_colorSpace->channelCount());
+
+    m_colorSpace->normalisedChannelsValue(m_data, channels1);
+    m_colorSpace->normalisedChannelsValue(value.data(), channels2);
+
+    for (int i = 0; i < channels1.size(); i++) {
+        channels1[i] -= channels2[i];
+    }
+
+    m_colorSpace->fromNormalisedChannelsValue(m_data, channels1);
+}
+
+KoColor KoColor::subtracted(const KoColor &value) const
+{
+    KoColor result(*this);
+    result.subtract(value);
+    return result;
+}
+
+void KoColor::add(const KoColor &value)
+{
+    KIS_SAFE_ASSERT_RECOVER_RETURN(*m_colorSpace == *value.colorSpace());
+
+    QVector<float> channels1(m_colorSpace->channelCount());
+    QVector<float> channels2(m_colorSpace->channelCount());
+
+    m_colorSpace->normalisedChannelsValue(m_data, channels1);
+    m_colorSpace->normalisedChannelsValue(value.data(), channels2);
+
+    for (int i = 0; i < channels1.size(); i++) {
+        channels1[i] += channels2[i];
+    }
+
+    m_colorSpace->fromNormalisedChannelsValue(m_data, channels1);
+}
+
+KoColor KoColor::added(const KoColor &value) const
+{
+    KoColor result(*this);
+    result.add(value);
+    return result;
 }
 
 #ifndef NDEBUG
@@ -281,4 +363,61 @@ QString KoColor::toQString(const KoColor &color)
         ls << color.colorSpace()->channelValueText(color.data(), realIndex);
     }
     return ls.join(" ");
+}
+
+QDebug operator<<(QDebug dbg, const KoColor &color)
+{
+    dbg.nospace() << "KoColor (" << color.colorSpace()->id();
+
+    QList<KoChannelInfo*> channels = color.colorSpace()->channels();
+    for (auto it = channels.constBegin(); it != channels.constEnd(); ++it) {
+
+        KoChannelInfo *ch = (*it);
+
+        dbg.nospace() << ", " << ch->name() << ":";
+
+        switch (ch->channelValueType()) {
+        case KoChannelInfo::UINT8: {
+            const quint8 *ptr = reinterpret_cast<const quint8*>(color.data() + ch->pos());
+            dbg.nospace() << *ptr;
+            break;
+        } case KoChannelInfo::UINT16: {
+            const quint16 *ptr = reinterpret_cast<const quint16*>(color.data() + ch->pos());
+            dbg.nospace() << *ptr;
+            break;
+        } case KoChannelInfo::UINT32: {
+            const quint32 *ptr = reinterpret_cast<const quint32*>(color.data() + ch->pos());
+            dbg.nospace() << *ptr;
+            break;
+#ifdef HAVE_OPENEXR
+        } case KoChannelInfo::FLOAT16: {
+            const half *ptr = reinterpret_cast<const half*>(color.data() + ch->pos());
+            dbg.nospace() << *ptr;
+            break;
+#endif
+        } case KoChannelInfo::FLOAT32: {
+            const float *ptr = reinterpret_cast<const float*>(color.data() + ch->pos());
+            dbg.nospace() << *ptr;
+            break;
+        } case KoChannelInfo::FLOAT64: {
+            const double *ptr = reinterpret_cast<const double*>(color.data() + ch->pos());
+            dbg.nospace() << *ptr;
+            break;
+        } case KoChannelInfo::INT8: {
+            const qint8 *ptr = reinterpret_cast<const qint8*>(color.data() + ch->pos());
+            dbg.nospace() << *ptr;
+            break;
+        } case KoChannelInfo::INT16: {
+            const qint16 *ptr = reinterpret_cast<const qint16*>(color.data() + ch->pos());
+            dbg.nospace() << *ptr;
+            break;
+        } case KoChannelInfo::OTHER: {
+            const quint8 *ptr = reinterpret_cast<const quint8*>(color.data() + ch->pos());
+            dbg.nospace() << "undef(" << *ptr << ")";
+            break;
+        }
+        }
+    }
+    dbg.nospace() << ")";
+    return dbg.space();
 }

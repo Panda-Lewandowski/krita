@@ -94,6 +94,12 @@ bool KisAbstractInputAction::supportsHiResInputEvents() const
     return false;
 }
 
+KisInputActionGroup KisAbstractInputAction::inputActionGroup(int shortcut) const
+{
+    Q_UNUSED(shortcut);
+    return ModifyingActionGroup;
+}
+
 KisInputManager* KisAbstractInputAction::inputManager() const
 {
     return Private::inputManager;
@@ -192,7 +198,7 @@ QPointF KisAbstractInputAction::eventPosF(const QEvent *event) {
     case QEvent::MouseMove:
     case QEvent::MouseButtonPress:
     case QEvent::MouseButtonRelease:
-        return static_cast<const QMouseEvent*>(event)->posF();
+        return static_cast<const QMouseEvent*>(event)->localPos();
 
     case QEvent::TabletMove:
     case QEvent::TabletPress:

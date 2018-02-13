@@ -46,7 +46,7 @@ typedef KisSafeReadList<KisNodeSP> KisSafeReadNodeList;
 #include "kis_keyframe_channel.h"
 
 /**
- *The link between KisProjection ans KisImageUpdater
+ *The link between KisProjection and KisImageUpdater
  *uses queued signals with an argument of KisNodeSP type,
  *so we should register it beforehand
  */
@@ -587,8 +587,8 @@ void KisNode::setDirty()
 
 void KisNode::setDirty(const QVector<QRect> &rects)
 {
-    Q_FOREACH (const QRect &rc, rects) {
-        setDirty(rc);
+    if(m_d->graphListener) {
+        m_d->graphListener->requestProjectionUpdate(this, rects, true);
     }
 }
 
@@ -597,17 +597,25 @@ void KisNode::setDirty(const QRegion &region)
     setDirty(region.rects());
 }
 
-void KisNode::setDirtyDontResetAnimationCache()
-{
-    if(m_d->graphListener) {
-        m_d->graphListener->requestProjectionUpdate(this, extent(), false);
-    }
-}
-
 void KisNode::setDirty(const QRect & rect)
 {
+    setDirty(QVector<QRect>({rect}));
+}
+
+void KisNode::setDirtyDontResetAnimationCache()
+{
+    setDirtyDontResetAnimationCache(QVector<QRect>({extent()}));
+}
+
+void KisNode::setDirtyDontResetAnimationCache(const QRect &rect)
+{
+    setDirtyDontResetAnimationCache(QVector<QRect>({rect}));
+}
+
+void KisNode::setDirtyDontResetAnimationCache(const QVector<QRect> &rects)
+{
     if(m_d->graphListener) {
-        m_d->graphListener->requestProjectionUpdate(this, rect, true);
+        m_d->graphListener->requestProjectionUpdate(this, rects, false);
     }
 }
 

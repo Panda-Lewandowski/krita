@@ -190,7 +190,7 @@ public:
      */
     QRect extent() const;
 
-    /// Convience method for the above
+    /// Convenience method for the above
     void extent(qint32 &x, qint32 &y, qint32 &w, qint32 &h) const;
 
     /**
@@ -222,7 +222,7 @@ public:
     QRect exactBoundsAmortized() const;
 
     /**
-     * Retuns exact rectangle of the paint device that contains
+     * Returns exact rectangle of the paint device that contains
      * non-default pixels. For paint devices with fully transparent
      * default pixel is equivalent to exactBounds().
      *
@@ -259,7 +259,7 @@ public:
      */
     void crop(qint32 x, qint32 y, qint32 w, qint32 h);
 
-    /// Convience method for the above
+    /// Convenience method for the above
     void crop(const QRect & r);
 
     /**
@@ -598,7 +598,7 @@ public:
      */
     bool setPixel(qint32 x, qint32 y, const QColor& c);
 
-    /// Convience method for the above
+    /// Convenience method for the above
     bool setPixel(qint32 x, qint32 y, const KoColor& kc);
 
     /**
@@ -618,7 +618,7 @@ public:
      * 2) Fill it with the desired color or data
      *
      * 3) Create a KisPainter and set all the properties of the
-     *    trasaction: selection, compositeOp, opacity and etc.
+     *    transaction: selection, compositeOp, opacity and etc.
      *
      * 4) Paint a newly created paint device over the destination
      *    device.

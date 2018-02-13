@@ -10,7 +10,6 @@ macro_add_unittest_definitions()
 
 ecm_add_tests(
     kis_image_view_converter_test.cpp
-    squeezedcombobox_test.cpp
     kis_shape_selection_test.cpp
     kis_recorded_action_editor_test.cpp
     kis_doc2_test.cpp
@@ -20,6 +19,7 @@ ecm_add_tests(
     kis_derived_resources_test.cpp
     kis_brush_hud_properties_config_test.cpp
     kis_shape_commands_test.cpp
+    kis_shape_layer_test.cpp
     kis_stop_gradient_editor_test.cpp
     NAME_PREFIX "krita-ui-"
     LINK_LIBRARIES kritaui Qt5::Test
@@ -106,6 +106,11 @@ krita_add_broken_unit_test(
 krita_add_broken_unit_test(
     freehand_stroke_test.cpp ${CMAKE_SOURCE_DIR}/sdk/tests/stroke_testing_utils.cpp
     TEST_NAME krita-ui-FreehandStrokeTest
+    LINK_LIBRARIES kritaui kritaimage Qt5::Test)
+
+krita_add_broken_unit_test(
+    FreehandStrokeBenchmark.cpp ${CMAKE_SOURCE_DIR}/sdk/tests/stroke_testing_utils.cpp
+    TEST_NAME krita-ui-FreehandStrokeBenchmark
     LINK_LIBRARIES kritaui kritaimage Qt5::Test)
 
 krita_add_broken_unit_test(

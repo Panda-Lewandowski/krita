@@ -236,21 +236,23 @@ QString KisImageConfig::swapDir(bool requestDefault)
     // tell us otherwise.
 
     // the other option here would be to use a "garbled name" temp file (i.e. no name
-    // KRITA_SWAP_FILE_XXXXXX) in an obsure /var/folders place, which is not
+    // KRITA_SWAP_FILE_XXXXXX) in an obscure /var/folders place, which is not
     // nice to the user. having a clearly named swap file in the home folder is
     // much nicer to Krita's users.
 
     // furthermore, this is just a default and swapDir can always be configured
     // to another location.
 
-    QString swap = QDir::homePath();
+    QString swap = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/swap";
 #else
     QString swap = QDir::tempPath();
 #endif
-    QString configuredSwap = !requestDefault ?
-            m_config.readEntry("swaplocation", swap) : swap;
-    if (configuredSwap.isEmpty()) {
-        configuredSwap = swap;
+    if (requestDefault) {
+       return swap;
+    }
+    QString configuredSwap = m_config.readEntry("swaplocation", swap);
+    if (!configuredSwap.isEmpty()) {
+        swap = configuredSwap;
     }
     return swap;
 }
@@ -447,7 +449,7 @@ KisProofingConfigurationSP KisImageConfig::defaultProofingconfiguration()
     if (m_config.readEntry("defaultProofingBlackpointCompensation", true)) {
         proofingConfig->conversionFlags  |= KoColorConversionTransformation::ConversionFlag::BlackpointCompensation;
     } else {
-                proofingConfig->conversionFlags  = proofingConfig->conversionFlags & ~KoColorConversionTransformation::ConversionFlag::BlackpointCompensation;
+        proofingConfig->conversionFlags  = proofingConfig->conversionFlags & ~KoColorConversionTransformation::ConversionFlag::BlackpointCompensation;
     }
     QColor def(Qt::green);
     m_config.readEntry("defaultProofingGamutwarning", def);

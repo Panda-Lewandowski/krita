@@ -59,7 +59,7 @@ void KisBidirectionalMixingOption::apply(KisPaintDeviceSP dab, KisPaintDeviceSP 
     KisSequentialConstIterator cit(canvas, srcRect);
     KisSequentialIterator dit(dab, srcRect);
     QVector<float> cc(count), dc(count);
-    do {
+    while (cit.nextPixel() && dit.nextPixel()) {
         if (cs->opacityU8(dit.rawData()) > 10 && cs->opacityU8(cit.rawDataConst()) > 10) {
 
             cs->normalisedChannelsValue(cit.rawDataConst(), cc);
@@ -75,8 +75,7 @@ void KisBidirectionalMixingOption::apply(KisPaintDeviceSP dab, KisPaintDeviceSP 
                 painter->setPaintColor(KoColor(dit.rawData(), cs));
             }
         }
-        dit.nextPixel();
-    } while(cit.nextPixel());
+    }
 }
 
 void KisBidirectionalMixingOption::applyFixed(KisFixedPaintDeviceSP dab, KisPaintDeviceSP device, KisPainter* painter, qint32 sx, qint32 sy, qint32 sw, qint32 sh, quint8 pressure, const QRect& dstRect)
@@ -88,7 +87,7 @@ void KisBidirectionalMixingOption::applyFixed(KisFixedPaintDeviceSP dab, KisPain
 
     KisFixedPaintDevice canvas(device->colorSpace());
     canvas.setRect(QRect(dstRect.x(), dstRect.y(), sw, sh));
-    canvas.initialize();
+    canvas.lazyGrowBufferWithoutInitialization();
     device->readBytes(canvas.data(), canvas.bounds());
 
     const KoColorSpace* cs = dab->colorSpace();

@@ -1,6 +1,7 @@
 [Desktop Entry]
 Name=Krita
 Name[af]=Krita
+Name[ar]=كريتا
 Name[bg]=Krita
 Name[br]=Krita
 Name[bs]=Krita
@@ -60,9 +61,9 @@ Name[wa]=Krita
 Name[xh]=Krita
 Name[x-test]=xxKritaxx
 Name[zh_CN]=Krita
-Name[zh_TW]=繪圖_Krita
+Name[zh_TW]=Krita
 Exec=krita %u
-MimeType=image/svg;
+MimeType=image/svg+xml;
 Type=Application
 Icon=calligrakrita
 Categories=Qt;KDE;Office;Graphics;

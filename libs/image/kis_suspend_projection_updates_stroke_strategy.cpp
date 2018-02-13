@@ -55,11 +55,15 @@ struct KisSuspendProjectionUpdatesStrokeStrategy::Private
         {
         }
 
-        bool filter(KisImage *image, KisNode *node, const QRect &rect,  bool resetAnimationCache) override {
+        bool filter(KisImage *image, KisNode *node, const QVector<QRect> &rects,  bool resetAnimationCache) override {
             if (image->currentLevelOfDetail() > 0) return false;
 
             QMutexLocker l(&m_mutex);
-            m_requestsHash[KisNodeSP(node)].append(Request(rect, resetAnimationCache));
+
+            Q_FOREACH(const QRect &rc, rects) {
+                m_requestsHash[KisNodeSP(node)].append(Request(rc, resetAnimationCache));
+            }
+
             return true;
         }
 
@@ -97,10 +101,8 @@ struct KisSuspendProjectionUpdatesStrokeStrategy::Private
                     resetAnimationCache |= req.resetAnimationCache;
                 }
 
-                Q_FOREACH (const QRect &rc, region.rects()) {
-                    // FIXME: constness: port rPU to SP
-                    listener->requestProjectionUpdate(const_cast<KisNode*>(node.data()), rc, resetAnimationCache);
-                }
+                // FIXME: constness: port rPU to SP
+                listener->requestProjectionUpdate(const_cast<KisNode*>(node.data()), region.rects(), resetAnimationCache);
             }
         }
 
@@ -151,7 +153,7 @@ KisSuspendProjectionUpdatesStrokeStrategy::KisSuspendProjectionUpdatesStrokeStra
     /**
      * Here we add a dumb INIT job so that KisStrokesQueue would know that the
      * stroke has already started or not. When the queue reaches the resume
-     * stroke ans starts its execution, no Lod0 can execute anymore. So all the
+     * stroke and starts its execution, no Lod0 can execute anymore. So all the
      * new Lod0 strokes should go to the end of the queue and wrapped into
      * their own Suspend/Resume pair.
      */

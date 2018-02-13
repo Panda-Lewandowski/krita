@@ -48,55 +48,62 @@ public:
             QPAINTER_PATH_FILL
         };
 
-        Data(KisNodeSP _node, int _painterInfoId,
+        Data(int _strokeInfoId,
              const KisPaintInformation &_pi)
-            : node(_node), painterInfoId(_painterInfoId),
+            : KisStrokeJobData(KisStrokeJobData::UNIQUELY_CONCURRENT),
+              strokeInfoId(_strokeInfoId),
               type(POINT), pi1(_pi)
         {}
 
-        Data(KisNodeSP _node, int _painterInfoId,
+        Data(int _strokeInfoId,
              const KisPaintInformation &_pi1,
              const KisPaintInformation &_pi2)
-            : node(_node), painterInfoId(_painterInfoId),
+            : KisStrokeJobData(KisStrokeJobData::UNIQUELY_CONCURRENT),
+              strokeInfoId(_strokeInfoId),
               type(LINE), pi1(_pi1), pi2(_pi2)
         {}
 
-        Data(KisNodeSP _node, int _painterInfoId,
+        Data(int _strokeInfoId,
              const KisPaintInformation &_pi1,
              const QPointF &_control1,
              const QPointF &_control2,
              const KisPaintInformation &_pi2)
-            : node(_node), painterInfoId(_painterInfoId),
+            : KisStrokeJobData(KisStrokeJobData::UNIQUELY_CONCURRENT),
+              strokeInfoId(_strokeInfoId),
               type(CURVE), pi1(_pi1), pi2(_pi2),
               control1(_control1), control2(_control2)
         {}
 
-        Data(KisNodeSP _node, int _painterInfoId,
+        Data(int _strokeInfoId,
              DabType _type,
              const vQPointF &_points)
-            : node(_node), painterInfoId(_painterInfoId),
+            : KisStrokeJobData(KisStrokeJobData::UNIQUELY_CONCURRENT),
+              strokeInfoId(_strokeInfoId),
             type(_type), points(_points)
         {}
 
-        Data(KisNodeSP _node, int _painterInfoId,
+        Data(int _strokeInfoId,
              DabType _type,
              const QRectF &_rect)
-            : node(_node), painterInfoId(_painterInfoId),
+            : KisStrokeJobData(KisStrokeJobData::UNIQUELY_CONCURRENT),
+              strokeInfoId(_strokeInfoId),
             type(_type), rect(_rect)
         {}
 
-        Data(KisNodeSP _node, int _painterInfoId,
+        Data(int _strokeInfoId,
              DabType _type,
              const QPainterPath &_path)
-            : node(_node), painterInfoId(_painterInfoId),
+            : KisStrokeJobData(KisStrokeJobData::UNIQUELY_CONCURRENT),
+              strokeInfoId(_strokeInfoId),
             type(_type), path(_path)
         {}
 
-        Data(KisNodeSP _node, int _painterInfoId,
+        Data(int _strokeInfoId,
              DabType _type,
              const QPainterPath &_path,
              const QPen &_pen, const KoColor &_customColor)
-            : node(_node), painterInfoId(_painterInfoId),
+            : KisStrokeJobData(KisStrokeJobData::UNIQUELY_CONCURRENT),
+              strokeInfoId(_strokeInfoId),
             type(_type), path(_path),
             pen(_pen), customColor(_customColor)
         {}
@@ -108,8 +115,7 @@ public:
     private:
         Data(const Data &rhs, int levelOfDetail)
             : KisStrokeJobData(rhs),
-              node(rhs.node),
-              painterInfoId(rhs.painterInfoId),
+              strokeInfoId(rhs.strokeInfoId),
               type(rhs.type)
         {
             KisLodTransform t(levelOfDetail);
@@ -155,8 +161,7 @@ public:
             };
         }
     public:
-        KisNodeSP node;
-        int painterInfoId;
+        int strokeInfoId;
 
         DabType type;
         KisPaintInformation pi1;
@@ -171,30 +176,58 @@ public:
         KoColor customColor;
     };
 
+    class UpdateData : public KisStrokeJobData {
+    public:
+        UpdateData(bool _forceUpdate)
+            : KisStrokeJobData(KisStrokeJobData::SEQUENTIAL),
+              forceUpdate(_forceUpdate)
+        {}
+
+
+        KisStrokeJobData* createLodClone(int levelOfDetail) override {
+            return new UpdateData(*this, levelOfDetail);
+        }
+
+    private:
+        UpdateData(const UpdateData &rhs, int levelOfDetail)
+            : KisStrokeJobData(rhs),
+              forceUpdate(rhs.forceUpdate)
+        {
+            Q_UNUSED(levelOfDetail);
+        }
+    public:
+        bool forceUpdate = false;
+    };
+
 public:
-    FreehandStrokeStrategy(bool needsIndirectPainting,
-                           const QString &indirectPaintingCompositeOp,
-                           KisResourcesSnapshotSP resources,
-                           PainterInfo *painterInfo,
+    FreehandStrokeStrategy(KisResourcesSnapshotSP resources,
+                           KisFreehandStrokeInfo *strokeInfo,
                            const KUndo2MagicString &name);
 
-    FreehandStrokeStrategy(bool needsIndirectPainting,
-                           const QString &indirectPaintingCompositeOp,
-                           KisResourcesSnapshotSP resources,
-                           QVector<PainterInfo*> painterInfos,
+    FreehandStrokeStrategy(KisResourcesSnapshotSP resources,
+                           QVector<KisFreehandStrokeInfo*> strokeInfos,
                            const KUndo2MagicString &name);
 
     ~FreehandStrokeStrategy() override;
+
+    void initStrokeCallback() override;
+    void finishStrokeCallback() override;
 
     void doStrokeCallback(KisStrokeJobData *data) override;
 
     KisStrokeStrategy* createLodClone(int levelOfDetail) override;
 
+    void notifyUserStartedStroke() override;
+    void notifyUserEndedStroke() override;
+
 protected:
     FreehandStrokeStrategy(const FreehandStrokeStrategy &rhs, int levelOfDetail);
 
 private:
-    void init(bool needsIndirectPainting, const QString &indirectPaintingCompositeOp);
+    void init();
+
+    void tryDoUpdate(bool forceEnd = false);
+    void issueSetDirtySignals();
 
 private:
     struct Private;

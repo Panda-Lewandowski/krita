@@ -109,6 +109,7 @@ public:
     qreal pixelGridDrawingThreshold;
     bool pixelGridEnabled;
     QColor gridColor;
+    QColor cursorColor;
 
     int xToColWithWrapCompensation(int x, const QRect &imageRect) {
         int firstImageColumn = openGLImageTextures->xToCol(imageRect.left());
@@ -162,24 +163,21 @@ KisOpenGLCanvas2::KisOpenGLCanvas2(KisCanvas2 *canvas,
 #else
     setAttribute(Qt::WA_AcceptTouchEvents, true);
 #endif
-    setAttribute(Qt::WA_InputMethodEnabled, true);
+    setAttribute(Qt::WA_InputMethodEnabled, false);
     setAttribute(Qt::WA_DontCreateNativeAncestors, true);
 
     setDisplayFilterImpl(colorConverter->displayFilter(), true);
 
     connect(KisConfigNotifier::instance(), SIGNAL(configChanged()), SLOT(slotConfigChanged()));
+    connect(KisConfigNotifier::instance(), SIGNAL(pixelGridModeChanged()), SLOT(slotPixelGridModeChanged()));
     slotConfigChanged();
+    slotPixelGridModeChanged();
     cfg.writeEntry("canvasState", "OPENGL_SUCCESS");
 }
 
 KisOpenGLCanvas2::~KisOpenGLCanvas2()
 {
     delete d;
-}
-
-bool KisOpenGLCanvas2::needsFpsDebugging() const
-{
-    return KisOpenglCanvasDebugger::instance()->showFpsOnCanvas();
 }
 
 void KisOpenGLCanvas2::setDisplayFilter(QSharedPointer<KisDisplayFilter> displayFilter)
@@ -415,11 +413,9 @@ void KisOpenGLCanvas2::paintToolOutline(const QPainterPath &path)
         glBlendFuncSeparate(GL_ONE_MINUS_DST_COLOR, GL_ZERO, GL_ONE, GL_ONE);
     }
 
-    KisConfig cfg;
-    QColor cursorColor = cfg.getCursorMainColor();
     d->solidColorShader->setUniformValue(
                 d->solidColorShader->location(Uniform::FragmentColor),
-                QVector4D(cursorColor.redF(), cursorColor.greenF(), cursorColor.blueF(), 1.0f));
+                QVector4D(d->cursorColor.redF(), d->cursorColor.greenF(), d->cursorColor.blueF(), 1.0f));
 
     // Paint the tool outline
     if (KisOpenGL::hasOpenGL3()) {
@@ -790,11 +786,20 @@ void KisOpenGLCanvas2::slotConfigChanged()
     d->openGLImageTextures->updateConfig(cfg.useOpenGLTextureBuffer(), cfg.numMipmapLevels());
     d->filterMode = (KisOpenGL::FilterMode) cfg.openGLFilteringMode();
 
+    d->cursorColor = cfg.getCursorMainColor();
+
+    notifyConfigChanged();
+}
+
+void KisOpenGLCanvas2::slotPixelGridModeChanged()
+{
+    KisConfig cfg;
+
     d->pixelGridDrawingThreshold = cfg.getPixelGridDrawingThreshold();
     d->pixelGridEnabled = cfg.pixelGridEnabled();
     d->gridColor = cfg.getPixelGridColor();
 
-    notifyConfigChanged();
+    update();
 }
 
 QVariant KisOpenGLCanvas2::inputMethodQuery(Qt::InputMethodQuery query) const

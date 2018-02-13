@@ -33,6 +33,7 @@
 #include "kis_types.h"
 #include <KoColor.h>
 #include <KoColorModelStandardIds.h>
+#include <KoColorSpaceRegistry.h>
 
 struct Q_DECL_HIDDEN KisPropertiesConfiguration::Private {
     QMap<QString, QVariant> properties;
@@ -94,15 +95,17 @@ void KisPropertiesConfiguration::fromXML(const QDomElement& e)
                     QString type = e.attribute("type");
                     QString name = e.attribute("name");
                     QString value = e.text();
-                    if(type == "bytearray")
-                    {
+
+                    if (type == "bytearray") {
                         d->properties[name] = QVariant(QByteArray::fromBase64(value.toLatin1()));
                     }
-                    else
+                    else {
                         d->properties[name] = value;
+                    }
                 }
-                else
+                else {
                     d->properties[e.attribute("name")] = QVariant(e.text());
+                }
             }
         }
         n = n.nextSibling();
@@ -257,18 +260,53 @@ KisCubicCurve KisPropertiesConfiguration::getCubicCurve(const QString & name, co
 KoColor KisPropertiesConfiguration::getColor(const QString& name, const KoColor& color) const
 {
     QVariant v = getProperty(name);
+
     if (v.isValid()) {
-        if (v.type() == QVariant::UserType && v.userType() == qMetaTypeId<KoColor>()) {
-            return v.value<KoColor>();
-        } else {
-            QDomDocument doc;
-            doc.setContent(v.toString());
-            QDomElement e = doc.documentElement().firstChild().toElement();
-            bool ok;
-            KoColor c = KoColor::fromXML(e, Integer16BitsColorDepthID.id(), &ok);
-            if (ok) {
-                return c;
+        switch(v.type()) {
+        case QVariant::UserType:
+        {
+            if (v.userType() == qMetaTypeId<KoColor>()) {
+                return v.value<KoColor>();
             }
+            break;
+        }
+        case QVariant::String:
+        {
+            QDomDocument doc;
+            if (doc.setContent(v.toString())) {
+                QDomElement e = doc.documentElement().firstChild().toElement();
+                bool ok;
+                KoColor c = KoColor::fromXML(e, Integer16BitsColorDepthID.id(), &ok);
+                if (ok) {
+                    return c;
+                }
+            }
+            else {
+                QColor c(v.toString());
+                if (c.isValid()) {
+                    KoColor kc(c, KoColorSpaceRegistry::instance()->rgb8());
+                    return kc;
+                }
+            }
+            break;
+        }
+        case QVariant::Color:
+        {
+            QColor c = v.value<QColor>();
+            KoColor kc(c, KoColorSpaceRegistry::instance()->rgb8());
+            return kc;
+        }
+        case QVariant::Int:
+        {
+            QColor c(v.toInt());
+            if (c.isValid()) {
+                KoColor kc(c, KoColorSpaceRegistry::instance()->rgb8());
+                return kc;
+            }
+            break;
+        }
+        default:
+            ;
         }
     }
     return color;
@@ -278,7 +316,7 @@ void KisPropertiesConfiguration::dump() const
 {
     QMap<QString, QVariant>::Iterator it;
     for (it = d->properties.begin(); it != d->properties.end(); ++it) {
-        dbgKrita << it.key() << " = " << it.value();
+        qDebug() << it.key() << " = " << it.value() << it.value().typeName();
     }
 
 }
@@ -301,6 +339,102 @@ QMap<QString, QVariant> KisPropertiesConfiguration::getProperties() const
 void KisPropertiesConfiguration::removeProperty(const QString & name)
 {
     d->properties.remove(name);
+}
+
+QList<QString> KisPropertiesConfiguration::getPropertiesKeys() const
+{
+    return d->properties.keys();
+}
+
+void KisPropertiesConfiguration::getPrefixedProperties(const QString &prefix, KisPropertiesConfiguration *config) const
+{
+    const int prefixSize = prefix.size();
+
+    const QList<QString> keys = getPropertiesKeys();
+    Q_FOREACH (const QString &key, keys) {
+        if (key.startsWith(prefix)) {
+            config->setProperty(key.mid(prefixSize), getProperty(key));
+        }
+    }
+}
+
+void KisPropertiesConfiguration::getPrefixedProperties(const QString &prefix, KisPropertiesConfigurationSP config) const
+{
+    getPrefixedProperties(prefix, config.data());
+}
+
+void KisPropertiesConfiguration::setPrefixedProperties(const QString &prefix, const KisPropertiesConfiguration *config)
+{
+    const QList<QString> keys = config->getPropertiesKeys();
+    Q_FOREACH (const QString &key, keys) {
+        this->setProperty(prefix + key, config->getProperty(key));
+    }
+}
+
+void KisPropertiesConfiguration::setPrefixedProperties(const QString &prefix, const KisPropertiesConfigurationSP config)
+{
+    setPrefixedProperties(prefix, config.data());
+}
+
+QString KisPropertiesConfiguration::escapeString(const QString &string)
+{
+    QString result = string;
+    result.replace(";", "\\;");
+    result.replace("]", "\\]");
+    result.replace(">", "\\>");
+    return result;
+}
+
+QString KisPropertiesConfiguration::unescapeString(const QString &string)
+{
+    QString result = string;
+    result.replace("\\;", ";");
+    result.replace("\\]", "]");
+    result.replace("\\>", ">");
+    return result;
+}
+
+void KisPropertiesConfiguration::setProperty(const QString &name, const QStringList &value)
+{
+    QStringList escapedList;
+    escapedList.reserve(value.size());
+
+    Q_FOREACH (const QString &str, value) {
+        escapedList << escapeString(str);
+    }
+
+    setProperty(name, escapedList.join(';'));
+}
+
+QStringList KisPropertiesConfiguration::getStringList(const QString &name, const QStringList &defaultValue) const
+{
+    if (!hasProperty(name)) return defaultValue;
+
+    const QString joined = getString(name);
+
+    QStringList result;
+
+    int afterLastMatch = -1;
+    for (int i = 0; i < joined.size(); i++) {
+        const bool lastChunk = i == joined.size() - 1;
+        const bool matchedSplitter = joined[i] == ';' && (i == 0 || joined[i - 1] != '\\');
+
+        if (lastChunk || matchedSplitter) {
+            result << unescapeString(joined.mid(afterLastMatch, i - afterLastMatch + int(lastChunk && !matchedSplitter)));
+            afterLastMatch = i + 1;
+        }
+
+        if (lastChunk && matchedSplitter) {
+            result << QString();
+        }
+    }
+
+    return result;
+}
+
+QStringList KisPropertiesConfiguration::getPropertyLazy(const QString &name, const QStringList &defaultValue) const
+{
+    return getStringList(name, defaultValue);
 }
 
 // --- factory ---

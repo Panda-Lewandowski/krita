@@ -90,7 +90,7 @@ KisTiledDataManager::~KisTiledDataManager()
      * dynamically allocated We need to  destroy them in that very order. The
      * reason is that when hash table destroying all her child tiles they all
      * cry about it  to The Memento Manager using a  pointer.  So The Memento
-     * Manager sould  be alive during  that destruction. We could  use shared
+     * Manager should be alive during  that destruction. We could  use shared
      * pointers instead, but they create too much overhead.
      */
     delete m_hashTable;
@@ -385,7 +385,13 @@ void KisTiledDataManager::clear(QRect clearRect, const quint8 *clearPixel)
             if (clearTileRect == tileRect) {
                  // Clear whole tile
                  m_hashTable->deleteTile(column, row);
-                 needsRecalculateExtent = true;
+
+                 if (!needsRecalculateExtent &&
+                     (m_extentMinX == tileRect.left() || m_extentMaxX == tileRect.right() ||
+                      m_extentMinY == tileRect.top() || m_extentMaxY == tileRect.bottom())) {
+
+                     needsRecalculateExtent = true;
+                 }
 
                  if (!pixelBytesAreDefault) {
                      KisTileSP clearedTile = KisTileSP(new KisTile(column, row, td, m_mementoManager));

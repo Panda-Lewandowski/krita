@@ -66,6 +66,12 @@
 #include <KoVectorPatternBackground.h>
 #include <KoMarker.h>
 
+#include <text/KoSvgTextShape.h>
+#include <text/KoSvgTextChunkShape.h>
+
+#include "kis_dom_utils.h"
+
+#include "kis_algebra_2d.h"
 #include "kis_debug.h"
 #include "kis_global.h"
 #include <algorithm>
@@ -117,9 +123,8 @@ struct SvgParser::DeferredUseStore {
     ~DeferredUseStore() {
         while (!m_uses.empty()) {
             const El& el = m_uses.back();
-            qDebug()
-                    << "WARNING: could not find path in <use xlink:href=\"#xxxxx\" expression. Losing data here. Key:"
-                    << el.m_key;
+            debugFlake << "WARNING: could not find path in <use xlink:href=\"#xxxxx\" expression. Losing data here. Key:"
+                       << el.m_key;
             m_uses.pop_back();
         }
     }
@@ -474,7 +479,7 @@ QSharedPointer<KoVectorPatternBackground> SvgParser::parsePattern(const KoXmlEle
     }
 
     /**
-     * In Krita shapes X,Y coordinates are baked into the the shape global transform, but
+     * In Krita shapes X,Y coordinates are baked into the shape global transform, but
      * the pattern should be painted in "user" coordinates. Therefore, we should handle
      * this offfset separately.
      *
@@ -674,7 +679,7 @@ bool SvgParser::parseSymbol(const KoXmlElement &e)
     if (title.isEmpty()) svgSymbol->title = id;
 
     if (svgSymbol->shape->boundingRect() == QRectF(0.0, 0.0, 0.0, 0.0)) {
-        warnFlake << "Symbol" << id << "seems to be empty, discarding";
+        debugFlake << "Symbol" << id << "seems to be empty, discarding";
         delete svgSymbol;
         return false;
     }
@@ -767,13 +772,7 @@ void SvgParser::applyCurrentStyle(KoShape *shape, const QPointF &shapeToOriginal
 {
     if (!shape) return;
 
-    SvgGraphicsContext *gc = m_context.currentGC();
-    KIS_ASSERT(gc);
-
-    if (!dynamic_cast<KoShapeGroup*>(shape)) {
-        applyFillStyle(shape);
-        applyStrokeStyle(shape);
-    }
+    applyCurrentBasicStyle(shape);
 
     if (KoPathShape *pathShape = dynamic_cast<KoPathShape*>(shape)) {
         applyMarkers(pathShape);
@@ -782,6 +781,20 @@ void SvgParser::applyCurrentStyle(KoShape *shape, const QPointF &shapeToOriginal
     applyFilter(shape);
     applyClipping(shape, shapeToOriginalUserCoordinates);
     applyMaskClipping(shape, shapeToOriginalUserCoordinates);
+
+}
+
+void SvgParser::applyCurrentBasicStyle(KoShape *shape)
+{
+    if (!shape) return;
+
+    SvgGraphicsContext *gc = m_context.currentGC();
+    KIS_ASSERT(gc);
+
+    if (!dynamic_cast<KoShapeGroup*>(shape)) {
+        applyFillStyle(shape);
+        applyStrokeStyle(shape);
+    }
 
     if (!gc->display || !gc->visible) {
         /**
@@ -798,6 +811,7 @@ void SvgParser::applyCurrentStyle(KoShape *shape, const QPointF &shapeToOriginal
     }
     shape->setTransparency(1.0 - gc->opacity);
 }
+
 
 void SvgParser::applyStyle(KoShape *obj, const KoXmlElement &e, const QPointF &shapeToOriginalUserCoordinates)
 {
@@ -877,6 +891,46 @@ QGradient* prepareGradientForShape(const SvgGradientHelper *gradient,
 
             resultGradient = KoFlake::cloneGradient(gradient->gradient());
             *transform = gradient->transform() * gc->matrix * shape->transformation().inverted();
+
+            const QRectF outlineRect = shape->outlineRect();
+            if (outlineRect.isEmpty()) return resultGradient;
+
+            /**
+             * If shape outline rect is valid, convert the gradient into OBB mode by
+             * doing some magic conversions: we compensate non-uniform size of the shape
+             * by applying an additional pre-transform
+             */
+
+            QRadialGradient *rgradient = static_cast<QRadialGradient*>(resultGradient);
+
+            const qreal maxDimension = KisAlgebra2D::maxDimension(outlineRect);
+            const QRectF uniformSize(outlineRect.topLeft(), QSizeF(maxDimension, maxDimension));
+
+            const QTransform uniformizeTransform =
+                    QTransform::fromTranslate(-outlineRect.x(), -outlineRect.y()) *
+                    QTransform::fromScale(maxDimension / shape->outlineRect().width(),
+                                          maxDimension / shape->outlineRect().height()) *
+                    QTransform::fromTranslate(outlineRect.x(), outlineRect.y());
+
+            const QPointF centerLocal = transform->map(rgradient->center());
+            const QPointF focalLocal = transform->map(rgradient->focalPoint());
+
+            const QPointF centerOBB = KisAlgebra2D::absoluteToRelative(centerLocal, uniformSize);
+            const QPointF focalOBB = KisAlgebra2D::absoluteToRelative(focalLocal, uniformSize);
+
+            rgradient->setCenter(centerOBB);
+            rgradient->setFocalPoint(focalOBB);
+
+            const qreal centerRadiusOBB = KisAlgebra2D::absoluteToRelative(rgradient->centerRadius(), uniformSize);
+            const qreal focalRadiusOBB = KisAlgebra2D::absoluteToRelative(rgradient->focalRadius(), uniformSize);
+
+            rgradient->setCenterRadius(centerRadiusOBB);
+            rgradient->setFocalRadius(focalRadiusOBB);
+
+            rgradient->setCoordinateMode(QGradient::ObjectBoundingMode);
+
+            // Warning: should it really be pre-multiplication?
+            *transform = uniformizeTransform * gradient->transform();
         }
     }
 
@@ -1224,15 +1278,15 @@ KoShape* SvgParser::resolveUse(const KoXmlElement &e, const QString& key)
     return result;
 }
 
-void SvgParser::addToGroup(QList<KoShape*> shapes, KoShapeGroup *group)
+void SvgParser::addToGroup(QList<KoShape*> shapes, KoShapeContainer *group)
 {
     m_shapes += shapes;
 
     if (!group || shapes.isEmpty())
         return;
 
-    // not clipped, but inherit transform
-    KoShapeGroupCommand cmd(group, shapes, false, true, false);
+    // not normalized
+    KoShapeGroupCommand cmd(group, shapes, false);
     cmd.redo();
 }
 
@@ -1381,7 +1435,91 @@ KoShape* SvgParser::parseGroup(const KoXmlElement &b, const KoXmlElement &overri
     return group;
 }
 
-QList<KoShape*> SvgParser::parseContainer(const KoXmlElement &e)
+KoShape* SvgParser::parseTextNode(const KoXmlText &e)
+{
+    QScopedPointer<KoSvgTextChunkShape> textChunk(new KoSvgTextChunkShape());
+    textChunk->setZIndex(m_context.nextZIndex());
+
+    if (!textChunk->loadSvgTextNode(e, m_context)) {
+        return 0;
+    }
+
+    textChunk->applyAbsoluteTransformation(m_context.currentGC()->matrix);
+    applyCurrentBasicStyle(textChunk.data()); // apply style to this group after size is set
+
+    return textChunk.take();
+}
+
+KoXmlText getTheOnlyTextChild(const KoXmlElement &e)
+{
+    KoXmlNode firstChild = e.firstChild();
+    return !firstChild.isNull() && firstChild == e.lastChild() && firstChild.isText() ?
+                firstChild.toText() : KoXmlText();
+}
+
+KoShape *SvgParser::parseTextElement(const KoXmlElement &e, KoSvgTextShape *mergeIntoShape)
+{
+    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(e.tagName() == "text" || e.tagName() == "tspan", 0);
+    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(m_isInsideTextSubtree || e.tagName() == "text", 0);
+    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(e.tagName() == "text" || !mergeIntoShape, 0);
+
+    KoSvgTextShape *rootTextShape  = 0;
+
+    if (e.tagName() == "text") {
+        // XXX: Shapes need to be created by their factories
+        rootTextShape = mergeIntoShape ? mergeIntoShape : new KoSvgTextShape();
+    }
+
+    if (rootTextShape) {
+        m_isInsideTextSubtree = true;
+    }
+
+    m_context.pushGraphicsContext(e);
+    uploadStyleToContext(e);
+
+    KoSvgTextChunkShape *textChunk = rootTextShape ? rootTextShape : new KoSvgTextChunkShape();
+    textChunk->setZIndex(m_context.nextZIndex());
+
+    textChunk->loadSvg(e, m_context);
+
+    // 1) apply transformation only in case we are not overriding the shape!
+    // 2) the transformation should be applied *before* the shape is added to the group!
+    if (!mergeIntoShape) {
+        // groups should also have their own coordinate system!
+        textChunk->applyAbsoluteTransformation(m_context.currentGC()->matrix);
+        const QPointF extraOffset = extraShapeOffset(textChunk, m_context.currentGC()->matrix);
+
+        // handle id
+        applyId(e.attribute("id"), textChunk);
+        applyCurrentStyle(textChunk, extraOffset); // apply style to this group after size is set
+    } else {
+        m_context.currentGC()->matrix = mergeIntoShape->absoluteTransformation(0);
+        applyCurrentBasicStyle(textChunk);
+    }
+
+    KoXmlText onlyTextChild = getTheOnlyTextChild(e);
+    if (!onlyTextChild.isNull()) {
+        textChunk->loadSvgTextNode(onlyTextChild, m_context);
+    } else {
+        QList<KoShape*> childShapes = parseContainer(e, true);
+        addToGroup(childShapes, textChunk);
+    }
+
+    m_context.popGraphicsContext();
+
+    textChunk->normalizeCharTransformations();
+
+    if (rootTextShape) {
+        textChunk->simplifyFillStrokeInheritance();
+
+        m_isInsideTextSubtree = false;
+        rootTextShape->relayout();
+    }
+
+    return textChunk;
+}
+
+QList<KoShape*> SvgParser::parseContainer(const KoXmlElement &e, bool parseTextNodes)
 {
     QList<KoShape*> shapes;
 
@@ -1392,8 +1530,17 @@ QList<KoShape*> SvgParser::parseContainer(const KoXmlElement &e)
 
     for (KoXmlNode n = e.firstChild(); !n.isNull(); n = n.nextSibling()) {
         KoXmlElement b = n.toElement();
-        if (b.isNull())
+        if (b.isNull()) {
+            if (parseTextNodes && n.isText()) {
+                KoShape *shape = parseTextNode(n.toText());
+
+                if (shape) {
+                    shapes += shape;
+                }
+            }
+
             continue;
+        }
 
         if (isSwitch) {
             // if we are parsing a switch check the requiredFeatures, requiredExtensions
@@ -1407,7 +1554,7 @@ QList<KoShape*> SvgParser::parseContainer(const KoXmlElement &e)
                 continue;
             }
             if (b.hasAttribute("systemLanguage")) {
-                // not implemeted yet
+                // not implemented yet
             }
         }
 
@@ -1419,6 +1566,12 @@ QList<KoShape*> SvgParser::parseContainer(const KoXmlElement &e)
             break;
     }
     return shapes;
+}
+
+void SvgParser::parseDefsElement(const KoXmlElement &e)
+{
+    KIS_SAFE_ASSERT_RECOVER_RETURN(e.tagName() == "defs");
+    parseSingleElement(e);
 }
 
 QList<KoShape*> SvgParser::parseSingleElement(const KoXmlElement &b, DeferredUseStore* deferredUseStore)
@@ -1449,7 +1602,8 @@ QList<KoShape*> SvgParser::parseSingleElement(const KoXmlElement &b, DeferredUse
              */
             KoShape *defsShape = parseGroup(b);
             defsShape->setVisible(false);
-            delete defsShape;
+            m_defsShapes << defsShape; // TODO: where to delete the shape!?
+
         }
     } else if (b.tagName() == "linearGradient" || b.tagName() == "radialGradient") {
     } else if (b.tagName() == "pattern") {
@@ -1465,6 +1619,10 @@ QList<KoShape*> SvgParser::parseSingleElement(const KoXmlElement &b, DeferredUse
         parseSymbol(b);
     } else if (b.tagName() == "style") {
         m_context.addStyleSheet(b);
+    } else if (b.tagName() == "text" ||
+               b.tagName() == "tspan") {
+
+        shapes += parseTextElement(b);
     } else if (b.tagName() == "rect" ||
                b.tagName() == "ellipse" ||
                b.tagName() == "circle" ||
@@ -1472,8 +1630,7 @@ QList<KoShape*> SvgParser::parseSingleElement(const KoXmlElement &b, DeferredUse
                b.tagName() == "polyline" ||
                b.tagName() == "polygon" ||
                b.tagName() == "path" ||
-               b.tagName() == "image" ||
-               b.tagName() == "text") {
+               b.tagName() == "image") {
         KoShape *shape = createObjectDirect(b);
         if (shape)
             shapes.append(shape);
@@ -1521,18 +1678,14 @@ KoShape * SvgParser::createPath(const KoXmlElement &element)
             path->clear();
 
             bool bFirst = true;
-            QString points = element.attribute("points").simplified();
-            points.replace(',', ' ');
-            points.remove('\r');
-            points.remove('\n');
-            QStringList pointList = points.split(' ', QString::SkipEmptyParts);
+            QStringList pointList = SvgUtil::simplifyList(element.attribute("points"));
             for (QStringList::Iterator it = pointList.begin(); it != pointList.end(); ++it) {
                 QPointF point;
-                point.setX(SvgUtil::fromUserSpace((*it).toDouble()));
+                point.setX(SvgUtil::fromUserSpace(KisDomUtils::toDouble(*it)));
                 ++it;
                 if (it == pointList.end())
                     break;
-                point.setY(SvgUtil::fromUserSpace((*it).toDouble()));
+                point.setY(SvgUtil::fromUserSpace(KisDomUtils::toDouble(*it)));
                 if (bFirst) {
                     path->moveTo(point);
                     bFirst = false;
@@ -1673,14 +1826,15 @@ KoShape *SvgParser::createShape(const QString &shapeID)
         debugFlake << "Could not create Default shape for shape id" << shapeID;
         return 0;
     }
-    if (shape->shapeId().isEmpty())
+    if (shape->shapeId().isEmpty()) {
         shape->setShapeId(factory->id());
+    }
 
     // reset transformation that might come from the default shape
     shape->setTransformation(QTransform());
 
     // reset border
-    KoShapeStrokeModelSP oldStroke = shape->stroke();
+    // ??? KoShapeStrokeModelSP oldStroke = shape->stroke();
     shape->setStroke(KoShapeStrokeModelSP());
 
     // reset fill

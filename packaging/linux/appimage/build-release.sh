@@ -1,6 +1,6 @@
 #!/bin/bash
 
-RELEASE=3.1.2.0
+RELEASE=4.0.0.51
 
 # Enter a CentOS 6 chroot (you could use other methods)
 # git clone https://github.com/probonopd/AppImageKit.git
@@ -61,11 +61,17 @@ ln -s lib lib64
 # Use the new compiler
 . /opt/rh/devtoolset-3/enable
 
+cd /
+
+git_pull_rebase_helper()
+{
+	git reset --hard HEAD
+        git pull
+
+}
+
 # fetch and build krita
 cd /
-#wget http://files.kde.org/krita/krita-$RELEASE.tar.gz
-#wget http://www.valdyas.org/~boud/krita-$RELEASE.tar.gz
-wget http://download.kde.org/unstable/krita/$RELEASE/krita-$RELEASE.tar.gz
 tar -xf krita-$RELEASE.tar.gz
 cd /krita_build
 cmake3 ../krita-$RELEASE \
@@ -77,6 +83,8 @@ cmake3 ../krita-$RELEASE \
     -DKDE4_BUILD_TESTS=FALSE \
     -DHAVE_MEMORY_LEAK_TRACKER=FALSE
 make -j4 install
+
+cp /gmic-qt/b/gmic_krita_qt /krita.appdir/usr/bin
 
 cd /krita.appdir
 
@@ -99,7 +107,9 @@ cp $(ldconfig -p | grep libEGL.so.1 | cut -d ">" -f 2 | xargs) ./usr/lib/ # Othe
 #cp $(ldconfig -p | grep libxcb.so.1 | cut -d ">" -f 2 | xargs) ./usr/lib/ 
 cp $(ldconfig -p | grep libfreetype.so.6 | cut -d ">" -f 2 | xargs) ./usr/lib/ # For Fedora 20
 
+
 ldd usr/bin/krita | grep "=>" | awk '{print $3}' | xargs -I '{}' cp -v '{}' ./usr/lib || true
+ldd usr/bin/gmic_krita_qt | grep "=>" | awk '{print $3}' | xargs -I '{}' cp -v '{}' ./usr/lib || true
 #ldd usr/lib64/krita/*.so  | grep "=>" | awk '{print $3}' | xargs -I '{}' cp -v '{}' ./usr/lib || true
 #ldd usr/lib64/plugins/imageformats/*.so  | grep "=>" | awk '{print $3}' | xargs -I '{}' cp -v '{}' ./usr/lib || true
 
@@ -157,7 +167,7 @@ rm -f usr/lib/libpthread.so.0 || true
 rm -f usr/lib/libresolv.so.2 || true
 rm -f usr/lib/libroken.so.18 || true
 rm -f usr/lib/librt.so.1 || true
-rm -f usr/lib/libsasl2.so.2 || true
+#rm -f usr/lib/libsasl2.so.2 || true
 rm -f usr/lib/libSM.so.6 || true
 rm -f usr/lib/libusb-1.0.so.0 || true
 rm -f usr/lib/libuuid.so.1 || true

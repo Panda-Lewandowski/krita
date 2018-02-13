@@ -86,7 +86,7 @@ public Q_SLOTS:
 public:
 
     /**
-     * Start a backgroud thread that will recalculate some extra frame.
+     * Start a background thread that will recalculate some extra frame.
      * The result will be reported using two types of signals:
      *
      * 1) KisImage::sigImageUpdated() will be emitted for every chunk
@@ -100,7 +100,9 @@ public:
      */
     void requestFrameRegeneration(int frameId, const QRegion &dirtyRegion);
 
+
     void notifyNodeChanged(const KisNode *node, const QRect &rect, bool recursive);
+    void notifyNodeChanged(const KisNode *node, const QVector<QRect> &rects, bool recursive);
     void invalidateFrames(const KisTimeRange &range, const QRect &rect);
 
     /**
@@ -128,7 +130,7 @@ public:
     QString audioChannelFileName() const;
 
     /**
-     * Sets **absolute** file name of the audio channel file. Dont' try to pass
+     * Sets **absolute** file name of the audio channel file. Don't try to pass
      * a relative path, it'll assert!
      */
     void setAudioChannelFileName(const QString &fileName);

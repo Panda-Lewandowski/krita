@@ -138,7 +138,8 @@ protected:
     enum NodePaintAbility {
         NONE,
         PAINT,
-        VECTOR
+        VECTOR,
+        CLONE
     };
 
     /// Checks if and how the tool can paint on the current node
@@ -227,6 +228,9 @@ private:
     int m_pickingResource;
     typedef KisSignalCompressorWithParam<PickingJob> PickingCompressor;
     QScopedPointer<PickingCompressor> m_colorPickingCompressor;
+
+    qreal m_localOpacity {1.0};
+    qreal m_oldOpacity {1.0};
 
 Q_SIGNALS:
     void sigPaintingFinished();

@@ -10,7 +10,7 @@ import json
 import zipfile
 import xml.etree.ElementTree as ET
 import shutil
-from PyQt5.QtWidgets import QLabel, QProgressDialog  # For the progress dialog.
+from PyQt5.QtWidgets import QLabel, QProgressDialog, qApp  # For the progress dialog.
 from PyQt5.QtCore import QElapsedTimer, QDateTime, QLocale, Qt
 from krita import *
 
@@ -463,6 +463,7 @@ class comicsExporter():
             progress.setCancelButton(None)
             timer = QElapsedTimer()
             timer.start()
+            qApp.processEvents()
 
             for p in range(0, len(pagesList)):
 
@@ -474,7 +475,7 @@ class comicsExporter():
                     passedString = str(int(timePassed / 60000)) + ":" + format(int(timePassed / 1000), "02d") + ":" + format(timePassed % 1000, "03d")
                     estimatedString = str(int(timeEstimated / 60000)) + ":" + format(int(timeEstimated / 1000), "02d") + ":" + format(int(timeEstimated % 1000), "03d")
                     progress.setLabelText(str(i18n("{pages} of {pagesTotal} done. \nTime passed: {passedString}:\n Estimated:{estimated}")).format(pages=p, pagesTotal=len(pagesList), passedString=passedString, estimated=estimatedString))
-
+                qApp.processEvents()
                 # Get the appropriate url and open the page.
                 url = os.path.join(self.projectURL, pagesList[p])
                 page = Application.openDocument(url)
@@ -487,23 +488,28 @@ class comicsExporter():
                 page.flatten()
                 while page.isIdle() is False:
                     page.waitForDone()
-
+                batchsave = Application.batchmode()
+                Application.setBatchmode(True)
                 # Start making the format specific copy.
                 if page.isIdle():
                     for key in sizesList.keys():
                         w = sizesList[key]
                         # copy over data
-                        projection = Application.createDocument(page.width(), page.height(), page.name(), page.colorModel(), page.colorDepth(), page.colorProfile())
-                        batchsave = Application.batchmode()
-                        Application.setBatchmode(True)
-                        projection.activeNode().setPixelData(page.pixelData(0, 0, page.width(), page.height()), 0, 0, page.width(), page.height())
-
+                        projection = page.clone()
+                        projection.setBatchmode(True)
                         # Crop. Cropping per guide only happens if said guides have been found.
                         if w["Crop"] is True:
+                            listHGuides = []
                             listHGuides = page.horizontalGuides()
                             listHGuides.sort()
+                            for i in range(len(listHGuides)-1, 0, -1):
+                                if listHGuides[i] < 0 or listHGuides[i] > page.height():
+                                    listHGuides.pop(i)
                             listVGuides = page.verticalGuides()
                             listVGuides.sort()
+                            for i in range(len(listVGuides)-1, 0, -1):
+                                if listVGuides[i] < 0 or listVGuides[i] > page.width():
+                                    listVGuides.pop(i)
                             if self.configDictionary["cropToGuides"] and len(listVGuides) > 1:
                                 cropx = listVGuides[0]
                                 cropw = listVGuides[-1] - cropx
@@ -550,15 +556,16 @@ class comicsExporter():
                         # Finally save and add the page to a list of pages. This will make it easy for the packaging function to
                         # find the pages and store them.
                         if projection.isIdle():
-                            projection.activeNode().save(fn, projection.resolution(), projection.resolution())
+                            projection.exportImage(fn, InfoObject())
                             projection.waitForDone()
                         self.pagesLocationList[key].append(fn)
 
                         # close
-                        Application.setBatchmode(batchsave)
+                        
                         projection.close()
                     page.close()
             progress.setValue(len(pagesList))
+            Application.setBatchmode(batchsave)
             # TODO: Check what or whether memory leaks are still caused and otherwise remove the entry below.
             print("CPMT: Export has finished. There are memory leaks, but the source is not obvious due wild times on git master. Last attempt to fix was august 2017")
             return True
@@ -856,9 +863,9 @@ class comicsExporter():
                 root.append(volume)
 
         if "publisherName" in self.configDictionary.keys():
-            pubisher = ET.Element("publisher")
-            pubisher.text = self.configDictionary["publisherName"]
-            root.append(pubisher)
+            publisher = ET.Element("publisher")
+            publisher.text = self.configDictionary["publisherName"]
+            root.append(publisher)
 
         if "publishingDate" in self.configDictionary.keys():
             date = ET.Element("date")

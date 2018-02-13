@@ -88,6 +88,8 @@
 #include "kis_canvas_updates_compressor.h"
 #include "KoZoomController.h"
 
+#include <KisStrokeSpeedMonitor.h>
+#include "opengl/kis_opengl_canvas_debugger.h"
 
 class Q_DECL_HIDDEN KisCanvas2::KisCanvas2Private
 {
@@ -133,6 +135,7 @@ public:
     bool lodAllowedInCanvas;
     bool bootstrapLodBlocked;
     QPointer<KoShapeManager> currentlyActiveShapeManager;
+    KisInputActionGroupsMask inputActionGroupsMask = AllActionGroup;
 
     bool effectiveLodAllowedInCanvas() {
         return lodAllowedInCanvas && !bootstrapLodBlocked;
@@ -222,6 +225,28 @@ void KisCanvas2::setup()
             globalShapeManager()->selection(), SIGNAL(currentLayerChanged(const KoShapeLayer*)));
 
     connect(&m_d->updateSignalCompressor, SIGNAL(timeout()), SLOT(slotDoCanvasUpdate()));
+
+    initializeFpsDecoration();
+}
+
+void KisCanvas2::initializeFpsDecoration()
+{
+    KisConfig cfg;
+
+    const bool shouldShowDebugOverlay =
+        (canvasIsOpenGL() && cfg.enableOpenGLFramerateLogging()) ||
+        cfg.enableBrushSpeedLogging();
+
+    if (shouldShowDebugOverlay && !decoration(KisFpsDecoration::idTag)) {
+        addDecoration(new KisFpsDecoration(imageView()));
+
+        if (cfg.enableBrushSpeedLogging()) {
+            connect(KisStrokeSpeedMonitor::instance(), SIGNAL(sigStatsUpdated()), this, SLOT(updateCanvas()));
+        }
+    } else if (!shouldShowDebugOverlay && decoration(KisFpsDecoration::idTag)) {
+        m_d->canvasWidget->removeDecoration(KisFpsDecoration::idTag);
+        disconnect(KisStrokeSpeedMonitor::instance(), SIGNAL(sigStatsUpdated()), this, SLOT(updateCanvas()));
+    }
 }
 
 KisCanvas2::~KisCanvas2()
@@ -380,6 +405,16 @@ KisInputManager* KisCanvas2::globalInputManager() const
     return m_d->view->globalInputManager();
 }
 
+KisInputActionGroupsMask KisCanvas2::inputActionGroupsMask() const
+{
+    return m_d->inputActionGroupsMask;
+}
+
+void KisCanvas2::setInputActionGroupsMask(KisInputActionGroupsMask mask)
+{
+    m_d->inputActionGroupsMask = mask;
+}
+
 QWidget* KisCanvas2::canvasWidget()
 {
     return m_d->canvasWidget->widget();
@@ -440,10 +475,6 @@ void KisCanvas2::createOpenGLCanvas()
     m_d->frameCache = KisAnimationFrameCache::getFrameCache(canvasWidget->openGLImageTextures());
 
     setCanvasWidget(canvasWidget);
-
-    if (canvasWidget->needsFpsDebugging() && !decoration(KisFpsDecoration::idTag)) {
-        addDecoration(new KisFpsDecoration(imageView()));
-    }
 }
 
 void KisCanvas2::createCanvas(bool useOpenGL)
@@ -590,17 +621,26 @@ void KisCanvas2::setProofingOptions(bool softProof, bool gamutCheck)
         m_d->proofingConfig = cfg.defaultProofingconfiguration();
     }
     KoColorConversionTransformation::ConversionFlags conversionFlags = m_d->proofingConfig->conversionFlags;
+#if QT_VERSION >= 0x050700
 
-    if (softProof && this->image()->colorSpace()->colorDepthId().id().contains("U")) {
+    if (this->image()->colorSpace()->colorDepthId().id().contains("U")) {
+        conversionFlags.setFlag(KoColorConversionTransformation::SoftProofing, softProof);
+        if (softProof) {
+            conversionFlags.setFlag(KoColorConversionTransformation::GamutCheck, gamutCheck);
+        }
+    }
+#else
+    if (this->image()->colorSpace()->colorDepthId().id().contains("U")) {
         conversionFlags |= KoColorConversionTransformation::SoftProofing;
     } else {
-        conversionFlags = conversionFlags &  ~KoColorConversionTransformation::SoftProofing;
+        conversionFlags = conversionFlags & ~KoColorConversionTransformation::SoftProofing;
     }
     if (gamutCheck && softProof && this->image()->colorSpace()->colorDepthId().id().contains("U")) {
         conversionFlags |= KoColorConversionTransformation::GamutCheck;
     } else {
         conversionFlags = conversionFlags & ~KoColorConversionTransformation::GamutCheck;
     }
+#endif
     m_d->proofingConfig->conversionFlags = conversionFlags;
 
     m_d->proofingConfigUpdated = true;
@@ -640,9 +680,7 @@ KisProofingConfigurationSP KisCanvas2::proofingConfiguration() const
     if (!m_d->proofingConfig) {
         m_d->proofingConfig = this->image()->proofingConfiguration();
         if (!m_d->proofingConfig) {
-            qDebug()<<"Canvas: No proofing config found, generating one.";
-            KisImageConfig cfg;
-            m_d->proofingConfig = cfg.defaultProofingconfiguration();
+            m_d->proofingConfig = KisImageConfig().defaultProofingconfiguration();
         }
     }
     return m_d->proofingConfig;
@@ -837,6 +875,7 @@ void KisCanvas2::slotConfigChanged()
     resetCanvas(cfg.useOpenGL());
     slotSetDisplayProfile(cfg.displayProfile(QApplication::desktop()->screenNumber(this->canvasWidget())));
 
+    initializeFpsDecoration();
 }
 
 void KisCanvas2::refetchDataFromImage()
@@ -894,6 +933,7 @@ void KisCanvas2::setFavoriteResourceManager(KisFavoriteResourceManager* favorite
                                             m_d->view->resourceProvider(), m_d->canvasWidget->widget());
     connect(m_d->popupPalette, SIGNAL(zoomLevelChanged(int)), this, SLOT(slotZoomChanged(int)));
     connect(m_d->popupPalette, SIGNAL(sigUpdateCanvas()), this, SLOT(updateCanvas()));
+    connect(m_d->view->mainWindow(), SIGNAL(themeChanged()), m_d->popupPalette, SLOT(slotUpdateIcons()));
 
     m_d->popupPalette->showPopupPalette(false);
 }

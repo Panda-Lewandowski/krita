@@ -1,5 +1,6 @@
 [Desktop Entry]
 Name=Design Templates
+Name[ar]=قوالب التّصميم
 Name[bs]=Predlošci dizajna
 Name[ca]=Plantilles de disseny
 Name[ca@valencia]=Plantilles de disseny
@@ -16,6 +17,7 @@ Name[fr]=Modèles design
 Name[gl]=Modelos de deseño
 Name[hu]=Tervező sablonok
 Name[ia]=Patronos de dessigno
+Name[is]=Hönnunarsniðmát
 Name[it]=Modelli di stile
 Name[ja]=デザインテンプレート
 Name[kk]=Пішім үлгілері
@@ -34,4 +36,5 @@ Name[tr]=Tasarım Şablonları
 Name[uk]=Шаблони компонування
 Name[x-test]=xxDesign Templatesxx
 Name[zh_CN]=设计模板
+Name[zh_TW]=設計範本
 X-KDE-DefaultTab=true

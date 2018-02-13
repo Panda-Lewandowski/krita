@@ -116,9 +116,9 @@ void KisGeneratorLayer::update()
     f->generate(dstCfg, processRect.size(), filterConfig.data());
 
 
-    // hack alert!
+    // HACK ALERT!!!
     // this avoids cyclic loop with KisRecalculateGeneratorLayerJob::run()
-    KisSelectionBasedLayer::setDirty(extent());
+    KisSelectionBasedLayer::setDirty(QVector<QRect>() << extent());
 }
 
 bool KisGeneratorLayer::accept(KisNodeVisitor & v)
@@ -159,9 +159,9 @@ void KisGeneratorLayer::setY(qint32 y)
     m_d->updateSignalCompressor.start();
 }
 
-void KisGeneratorLayer::setDirty(const QRect & rect)
+void KisGeneratorLayer::setDirty(const QVector<QRect> &rects)
 {
-    KisSelectionBasedLayer::setDirty(rect);
+    KisSelectionBasedLayer::setDirty(rects);
     m_d->updateSignalCompressor.start();
 }
 

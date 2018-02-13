@@ -19,35 +19,36 @@
 #include "kis_stroke_strategy.h"
 #include <KoCompositeOpRegistry.h>
 #include "kis_stroke_job_strategy.h"
+#include "KisStrokesQueueMutatedJobInterface.h"
 
 
 KisStrokeStrategy::KisStrokeStrategy(QString id, const KUndo2MagicString &name)
     : m_exclusive(false),
       m_supportsWrapAroundMode(false),
-      m_needsIndirectPainting(false),
-      m_indirectPaintingCompositeOp(COMPOSITE_ALPHA_DARKEN),
       m_clearsRedoOnStart(true),
       m_requestsOtherStrokesToEnd(true),
       m_canForgetAboutMe(false),
       m_needsExplicitCancel(false),
+      m_balancingRatioOverride(-1.0),
       m_id(id),
-      m_name(name)
+      m_name(name),
+      m_mutatedJobsInterface(0)
 {
 }
 
 KisStrokeStrategy::KisStrokeStrategy(const KisStrokeStrategy &rhs)
     : m_exclusive(rhs.m_exclusive),
       m_supportsWrapAroundMode(rhs.m_supportsWrapAroundMode),
-      m_needsIndirectPainting(rhs.m_needsIndirectPainting),
-      m_indirectPaintingCompositeOp(rhs.m_indirectPaintingCompositeOp),
       m_clearsRedoOnStart(rhs.m_clearsRedoOnStart),
       m_requestsOtherStrokesToEnd(rhs.m_requestsOtherStrokesToEnd),
       m_canForgetAboutMe(rhs.m_canForgetAboutMe),
       m_needsExplicitCancel(rhs.m_needsExplicitCancel),
+      m_balancingRatioOverride(rhs.m_balancingRatioOverride),
       m_id(rhs.m_id),
-      m_name(rhs.m_name)
+      m_name(rhs.m_name),
+      m_mutatedJobsInterface(0)
 {
-    KIS_ASSERT_RECOVER_NOOP(!rhs.m_cancelStrokeId &&
+    KIS_ASSERT_RECOVER_NOOP(!rhs.m_cancelStrokeId && !m_mutatedJobsInterface &&
                             "After the stroke has been started, no copying must happen");
 }
 
@@ -55,6 +56,13 @@ KisStrokeStrategy::~KisStrokeStrategy()
 {
 }
 
+void KisStrokeStrategy::notifyUserStartedStroke()
+{
+}
+
+void KisStrokeStrategy::notifyUserEndedStroke()
+{
+}
 
 KisStrokeJobStrategy* KisStrokeStrategy::createInitStrategy()
 {
@@ -127,16 +135,6 @@ bool KisStrokeStrategy::supportsWrapAroundMode() const
     return m_supportsWrapAroundMode;
 }
 
-bool KisStrokeStrategy::needsIndirectPainting() const
-{
-    return m_needsIndirectPainting;
-}
-
-QString KisStrokeStrategy::indirectPaintingCompositeOp() const
-{
-    return m_indirectPaintingCompositeOp;
-}
-
 QString KisStrokeStrategy::id() const
 {
     return m_id;
@@ -147,6 +145,26 @@ KUndo2MagicString KisStrokeStrategy::name() const
     return m_name;
 }
 
+void KisStrokeStrategy::setMutatedJobsInterface(KisStrokesQueueMutatedJobInterface *mutatedJobsInterface)
+{
+    m_mutatedJobsInterface = mutatedJobsInterface;
+}
+
+void KisStrokeStrategy::addMutatedJobs(const QVector<KisStrokeJobData *> list)
+{
+    KIS_SAFE_ASSERT_RECOVER(m_mutatedJobsInterface && m_cancelStrokeId) {
+        qDeleteAll(list);
+        return;
+    }
+
+    m_mutatedJobsInterface->addMutatedJobs(m_cancelStrokeId, list);
+}
+
+void KisStrokeStrategy::addMutatedJob(KisStrokeJobData *data)
+{
+    addMutatedJobs({data});
+}
+
 void KisStrokeStrategy::setExclusive(bool value)
 {
     m_exclusive = value;
@@ -155,16 +173,6 @@ void KisStrokeStrategy::setExclusive(bool value)
 void KisStrokeStrategy::setSupportsWrapAroundMode(bool value)
 {
     m_supportsWrapAroundMode = value;
-}
-
-void KisStrokeStrategy::setNeedsIndirectPainting(bool value)
-{
-    m_needsIndirectPainting = value;
-}
-
-void KisStrokeStrategy::setIndirectPaintingCompositeOp(const QString &id)
-{
-    m_indirectPaintingCompositeOp = id;
 }
 
 bool KisStrokeStrategy::clearsRedoOnStart() const
@@ -205,4 +213,14 @@ bool KisStrokeStrategy::needsExplicitCancel() const
 void KisStrokeStrategy::setNeedsExplicitCancel(bool value)
 {
     m_needsExplicitCancel = value;
+}
+
+qreal KisStrokeStrategy::balancingRatioOverride() const
+{
+    return m_balancingRatioOverride;
+}
+
+void KisStrokeStrategy::setBalancingRatioOverride(qreal value)
+{
+    m_balancingRatioOverride = value;
 }

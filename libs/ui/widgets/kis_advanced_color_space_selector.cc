@@ -32,7 +32,7 @@
 #include <KoConfig.h>
 #include <kis_icon.h>
 
-#include <QDesktopServices>
+#include <QStandardPaths>
 #include <QTextBrowser>
 #include <QScrollBar>
 
@@ -701,7 +701,7 @@ QString KisAdvancedColorSpaceSelector::nameWhitePoint(QVector <double> whitePoin
     //The F series seems to sorta overlap with the D series, so I'll just leave them in comment here.//
     //F1  (0.31811, 0.33559) (6430K) (Daylight Fluorescent)
     //F2  (0.37925, 0.36733) (4230K) (Cool White Fluorescent)
-    //F3  (0.41761, 0.38324) (3450K) (White Florescent)
+    //F3  (0.41761, 0.38324) (3450K) (White Fluorescent)
     //F4  (0.44920, 0.39074) (2940K) (Warm White Fluorescent)
     //F5  (0.31975, 0.34246) (6350K) (Daylight Fluorescent)
     //F6  (0.38660, 0.37847) (4150K) (Lite White Fluorescent)
@@ -770,7 +770,7 @@ void KisAdvancedColorSpaceSelector::installProfile()
 {
     KoFileDialog dialog(this, KoFileDialog::OpenFiles, "OpenDocumentICC");
     dialog.setCaption(i18n("Install Color Profiles"));
-    dialog.setDefaultDir(QDesktopServices::storageLocation(QDesktopServices::HomeLocation));
+    dialog.setDefaultDir(QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
     dialog.setMimeTypeFilters(QStringList() << "application/vnd.iccprofile", "application/vnd.iccprofile");
     QStringList profileNames = dialog.filenames();
 

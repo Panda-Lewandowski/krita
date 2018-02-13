@@ -102,7 +102,7 @@ class KisPerChannelConfigWidget : public KisConfigWidget
     Q_OBJECT
 
 public:
-    KisPerChannelConfigWidget(QWidget * parent, KisPaintDeviceSP dev, Qt::WFlags f = 0);
+    KisPerChannelConfigWidget(QWidget * parent, KisPaintDeviceSP dev, Qt::WindowFlags f = 0);
     ~KisPerChannelConfigWidget() override;
 
     void setConfiguration(const KisPropertiesConfigurationSP config) override;
@@ -111,6 +111,8 @@ public:
 private Q_SLOTS:
     virtual void setActiveChannel(int ch);
     void logHistView();
+    void resetCurve();
+
 
 private:
 
@@ -131,6 +133,7 @@ private:
     // scales for displaying color numbers
     double m_scale;
     double m_shift;
+    bool checkReset;
 };
 
 #endif

@@ -18,9 +18,10 @@
 
 #include "kis_node_manager.h"
 
-#include <QDesktopServices>
+#include <QStandardPaths>
 #include <QMessageBox>
 #include <QSignalMapper>
+#include <QApplication>
 
 #include <kactioncollection.h>
 
@@ -35,7 +36,6 @@
 #include <KoFileDialog.h>
 #include <KoToolManager.h>
 #include <KoProperties.h>
-
 
 #include <KoColorSpace.h>
 #include <KoColorSpaceRegistry.h>
@@ -76,6 +76,7 @@
 #include "kis_mimedata.h"
 #include "kis_layer_utils.h"
 #include "krita_utils.h"
+#include "kis_shape_layer.h"
 
 #include "processing/kis_mirror_processing_visitor.h"
 #include "KisView.h"
@@ -265,6 +266,10 @@ void KisNodeManager::setup(KActionCollection * actionCollection, KisActionManage
     action  = actionManager->createAction("save_node_as_image");
     connect(action, SIGNAL(triggered()), this, SLOT(saveNodeAsImage()));
 
+    action  = actionManager->createAction("save_vector_node_to_svg");
+    connect(action, SIGNAL(triggered()), this, SLOT(saveVectorLayerAsImage()));
+    action->setActivationFlags(KisAction::ACTIVE_SHAPE_LAYER);
+
     action = actionManager->createAction("duplicatelayer");
     connect(action, SIGNAL(triggered()), this, SLOT(duplicateActiveNode()));
 
@@ -345,6 +350,8 @@ void KisNodeManager::setup(KActionCollection * actionCollection, KisActionManage
     CONVERT_NODE_ACTION_2("convert_to_transparency_mask", "KisTransparencyMask", QStringList() << "KisTransparencyMask" << "KisColorizeMask");
 
     CONVERT_NODE_ACTION("convert_to_animated", "animated");
+
+    CONVERT_NODE_ACTION_2("convert_layer_to_file_layer", "KisFileLayer", QStringList()<< "KisFileLayer" << "KisCloneLayer");
 
     connect(&m_d->nodeConversionSignalMapper, SIGNAL(mapped(const QString &)),
             this, SLOT(convertNode(const QString &)));
@@ -589,7 +596,8 @@ void KisNodeManager::convertNode(const QString &nodeType)
 
         m_d->commandsAdapter.removeNode(activeNode);
         m_d->commandsAdapter.endMacro();
-
+    } else if (nodeType == "KisFileLayer") {
+            m_d->layerManager.convertLayerToFileLayer(activeNode);
     } else {
         warnKrita << "Unsupported node conversion type:" << nodeType;
     }
@@ -685,9 +693,10 @@ KisPaintDeviceSP KisNodeManager::activePaintDevice()
 
 void KisNodeManager::nodeProperties(KisNodeSP node)
 {
-    if (selectedNodes().size() > 1 || node->inherits("KisLayer")) {
+    if ((selectedNodes().size() > 1 && node->inherits("KisLayer")) || node->inherits("KisLayer")) {
         m_d->layerManager.layerProperties();
-    } else if (node->inherits("KisMask")) {
+    }
+    else if (node->inherits("KisMask")) {
         m_d->maskManager.maskProperties();
     }
 }
@@ -783,7 +792,8 @@ KisNodeJugglerCompressed* KisNodeManager::Private::lazyGetJuggler(const KUndo2Ma
 
     if (!nodeJuggler ||
         (nodeJuggler &&
-         !nodeJuggler->canMergeAction(actionName))) {
+         (nodeJuggler->isEnded() ||
+          !nodeJuggler->canMergeAction(actionName)))) {
 
         nodeJuggler = new KisNodeJugglerCompressed(actionName, image, q, 750);
         nodeJuggler->setAutoDelete(true);
@@ -994,7 +1004,7 @@ void KisNodeManager::Private::saveDeviceAsImage(KisPaintDeviceSP device,
 {
     KoFileDialog dialog(view->mainWindow(), KoFileDialog::SaveFile, "savenodeasimage");
     dialog.setCaption(i18n("Export \"%1\"", defaultName));
-    dialog.setDefaultDir(QDesktopServices::storageLocation(QDesktopServices::PicturesLocation));
+    dialog.setDefaultDir(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation));
     dialog.setMimeTypeFilters(KisImportExportManager::mimeFilter(KisImportExportManager::Export));
     QString filename = dialog.filename();
 
@@ -1004,7 +1014,7 @@ void KisNodeManager::Private::saveDeviceAsImage(KisPaintDeviceSP device,
 
     if (url.isEmpty()) return;
 
-    QString mimefilter = KisMimeDatabase::mimeTypeForFile(filename);;
+    QString mimefilter = KisMimeDatabase::mimeTypeForFile(filename, false);
 
     QScopedPointer<KisDocument> doc(KisPart::instance()->createDocument());
 
@@ -1047,6 +1057,40 @@ void KisNodeManager::saveNodeAsImage()
                            node->opacity());
 }
 
+#include "SvgWriter.h"
+
+void KisNodeManager::saveVectorLayerAsImage()
+{
+    KisShapeLayerSP shapeLayer = qobject_cast<KisShapeLayer*>(activeNode().data());
+    if (!shapeLayer) {
+        return;
+    }
+
+    KoFileDialog dialog(m_d->view->mainWindow(), KoFileDialog::SaveFile, "savenodeasimage");
+    dialog.setCaption(i18nc("@title:window", "Export to SVG"));
+    dialog.setDefaultDir(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation));
+    dialog.setMimeTypeFilters(QStringList() << "image/svg+xml", "image/svg+xml");
+    QString filename = dialog.filename();
+
+    if (filename.isEmpty()) return;
+
+    QUrl url = QUrl::fromLocalFile(filename);
+
+    if (url.isEmpty()) return;
+
+    const QSizeF sizeInPx = m_d->view->image()->bounds().size();
+    const QSizeF sizeInPt(sizeInPx.width() / m_d->view->image()->xRes(),
+                          sizeInPx.height() / m_d->view->image()->yRes());
+
+    QList<KoShape*> shapes = shapeLayer->shapes();
+    std::sort(shapes.begin(), shapes.end(), KoShape::compareShapeZIndex);
+
+    SvgWriter writer(shapes);
+    if (!writer.save(filename, sizeInPt, true)) {
+        QMessageBox::warning(qApp->activeWindow(), i18nc("@title:window", "Krita"), i18n("Could not save to svg: %1").arg(filename));
+    }
+}
+
 void KisNodeManager::slotSplitAlphaIntoMask()
 {
     KisNodeSP node = activeNode();
@@ -1069,13 +1113,13 @@ void KisNodeManager::slotSplitAlphaIntoMask()
     KisSequentialIterator srcIt(srcDevice, processRect);
     KisSequentialIterator dstIt(selectionDevice, processRect);
 
-    do {
+    while (srcIt.nextPixel() && dstIt.nextPixel()) {
         quint8 *srcPtr = srcIt.rawData();
         quint8 *alpha8Ptr = dstIt.rawData();
 
         *alpha8Ptr = srcCS->opacityU8(srcPtr);
         srcCS->setOpacity(srcPtr, OPACITY_OPAQUE_U8, 1);
-    } while (srcIt.nextPixel() && dstIt.nextPixel());
+    }
 
     m_d->commandsAdapter.addExtraCommand(transaction.endAndTake());
 
@@ -1132,12 +1176,12 @@ void KisNodeManager::Private::mergeTransparencyMaskAsAlpha(bool writeToLayers)
     KisSequentialIterator srcIt(selectionDevice, processRect);
     KisSequentialIterator dstIt(dstDevice, processRect);
 
-    do {
+    while (srcIt.nextPixel() && dstIt.nextPixel()) {
         quint8 *alpha8Ptr = srcIt.rawData();
         quint8 *dstPtr = dstIt.rawData();
 
         dstCS->setOpacity(dstPtr, *alpha8Ptr, 1);
-    } while (srcIt.nextPixel() && dstIt.nextPixel());
+    }
 
     if (writeToLayers) {
         commandsAdapter.addExtraCommand(transaction->endAndTake());

@@ -27,11 +27,14 @@
 #include "kis_paintop_transformation_connector.h"
 #include "kis_coordinates_converter.h"
 #include "kis_canvas2.h"
+#include "opengl/kis_opengl_canvas2.h"
 #include "kis_image.h"
 #include "KisViewManager.h"
 #include "KisView.h"
 #include "krita_utils.h"
+#include "kis_config.h"
 #include "kis_signal_compressor_with_param.h"
+#include "kis_config_notifier.h"
 
 static const int gRulersUpdateDelay = 80 /* ms */;
 
@@ -272,6 +275,14 @@ bool KisCanvasController::wrapAroundMode() const
     Q_ASSERT(kritaCanvas);
 
     return kritaCanvas->wrapAroundViewingMode();
+}
+
+void KisCanvasController::slotTogglePixelGrid(bool value)
+{
+    KisConfig cfg;
+    cfg.enablePixelGrid(value);
+
+    KisConfigNotifier::instance()->notifyPixelGridModeChanged();
 }
 
 void KisCanvasController::slotToggleLevelOfDetailMode(bool value)

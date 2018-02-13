@@ -32,6 +32,7 @@
 #include "kis_paint_device.h"
 #include "kis_paint_layer.h"
 #include "kis_group_layer.h"
+#include <KisViewManager.h>
 
 #include "testutil.h"
 
@@ -63,6 +64,7 @@ KoCanvasResourceManager* utils::createResourceManager(KisImageWSP image,
                                                 const QString &presetFileName)
 {
     KoCanvasResourceManager *manager = new KoCanvasResourceManager();
+    KisViewManager::initializeResourceManager(manager);
 
     QVariant i;
 
@@ -148,6 +150,11 @@ void utils::StrokeTester::testSimpleStroke()
     testOneStroke(false, true, false, true);
 }
 
+int utils::StrokeTester::lastStrokeTime() const
+{
+    return m_strokeTime;
+}
+
 void utils::StrokeTester::test()
 {
     testOneStroke(false, false, false);
@@ -173,7 +180,7 @@ void utils::StrokeTester::test()
 void utils::StrokeTester::benchmark()
 {
     // not cancelled, indirect painting, internal, no updates, no qimage
-    doStroke(false, true, false, false, false);
+    doStroke(false, false, false, false);
 }
 
 void utils::StrokeTester::testOneStroke(bool cancelled,
@@ -181,6 +188,9 @@ void utils::StrokeTester::testOneStroke(bool cancelled,
                                         bool externalLayer,
                                         bool testUpdates)
 {
+    // TODO: indirectPainting option is not used anymore! The real value is
+    //       taken from the preset!
+
     QString testName = formatTestName(m_name,
                                       cancelled,
                                       indirectPainting,
@@ -190,7 +200,7 @@ void utils::StrokeTester::testOneStroke(bool cancelled,
              << "(comare against " << (testUpdates ? "projection" : "layer") << ")";
 
     QImage resultImage;
-    resultImage = doStroke(cancelled, indirectPainting, externalLayer, testUpdates);
+    resultImage = doStroke(cancelled, externalLayer, testUpdates);
 
     QImage refImage;
     refImage.load(referenceFile(testName));
@@ -246,7 +256,6 @@ QString utils::StrokeTester::resultFile(const QString &testName)
 }
 
 QImage utils::StrokeTester::doStroke(bool cancelled,
-                                     bool indirectPainting,
                                      bool externalLayer,
                                      bool testUpdates,
                                      bool needQImage)
@@ -271,7 +280,10 @@ QImage utils::StrokeTester::doStroke(bool cancelled,
 
         initImage(image, resources->currentNode(), i);
 
-        KisStrokeStrategy *stroke = createStroke(indirectPainting, resources, image);
+        QElapsedTimer strokeTime;
+        strokeTime.start();
+
+        KisStrokeStrategy *stroke = createStroke(resources, image);
         m_strokeId = image->startStroke(stroke);
         addPaintingJobs(image, resources, i);
 
@@ -283,6 +295,8 @@ QImage utils::StrokeTester::doStroke(bool cancelled,
         }
 
         image->waitForDone();
+
+        m_strokeTime = strokeTime.elapsed();
         currentNode = resources->currentNode();
     }
 

@@ -289,6 +289,7 @@ void KisImageTest::testCloneImage()
         QVERIFY(newAnnotation);
         QVERIFY(newAnnotation != annotation);
 
+
         KisProofingConfigurationSP newProofing = newImage->proofingConfiguration();
         QVERIFY(newProofing);
         QVERIFY(newProofing != proofing);
@@ -485,7 +486,7 @@ struct FlattenTestImage
         // dbgKrita << ppVar(layer3->exactBounds());
         // dbgKrita << ppVar(layer4->exactBounds());
 
-        TestUtil::ExternalImageChecker chk("flatten", "imagetest");
+        TestUtil::ReferenceImageChecker chk("flatten", "imagetest");
         QVERIFY(chk.checkDevice(p.image->projection(), p.image, "00_initial"));
     }
 
@@ -537,7 +538,7 @@ void KisImageTest::testFlattenLayer()
 {
     FlattenTestImage p;
 
-    TestUtil::ExternalImageChecker chk("flatten", "imagetest");
+    TestUtil::ReferenceImageChecker chk("flatten", "imagetest");
 
     {
         QCOMPARE(p.layer2->compositeOpId(), COMPOSITE_ADD);
@@ -608,8 +609,8 @@ void KisImageTest::testMergeDown()
 {
     FlattenTestImage p;
 
-    TestUtil::ExternalImageChecker img("flatten", "imagetest");
-    TestUtil::ExternalImageChecker chk("mergedown_simple", "imagetest");
+    TestUtil::ReferenceImageChecker img("flatten", "imagetest");
+    TestUtil::ReferenceImageChecker chk("mergedown_simple", "imagetest");
 
 
     {
@@ -658,8 +659,8 @@ void KisImageTest::testMergeDownDestinationInheritsAlpha()
 {
     FlattenTestImage p;
 
-    TestUtil::ExternalImageChecker img("flatten", "imagetest");
-    TestUtil::ExternalImageChecker chk("mergedown_dst_inheritsalpha", "imagetest");
+    TestUtil::ReferenceImageChecker img("flatten", "imagetest");
+    TestUtil::ReferenceImageChecker chk("mergedown_dst_inheritsalpha", "imagetest");
 
     {
         QCOMPARE(p.layer2->compositeOpId(), COMPOSITE_ADD);
@@ -681,8 +682,8 @@ void KisImageTest::testMergeDownDestinationCustomCompositeOp()
 {
     FlattenTestImage p;
 
-    TestUtil::ExternalImageChecker img("flatten", "imagetest");
-    TestUtil::ExternalImageChecker chk("mergedown_dst_customop", "imagetest");
+    TestUtil::ReferenceImageChecker img("flatten", "imagetest");
+    TestUtil::ReferenceImageChecker chk("mergedown_dst_customop", "imagetest");
 
     {
         QCOMPARE(p.layer6->compositeOpId(), COMPOSITE_OVER);
@@ -706,8 +707,8 @@ void KisImageTest::testMergeDownDestinationSameCompositeOpLayerStyle()
 {
     FlattenTestImage p;
 
-    TestUtil::ExternalImageChecker img("flatten", "imagetest");
-    TestUtil::ExternalImageChecker chk("mergedown_sameop_ls", "imagetest");
+    TestUtil::ReferenceImageChecker img("flatten", "imagetest");
+    TestUtil::ReferenceImageChecker chk("mergedown_sameop_ls", "imagetest");
 
     {
         QCOMPARE(p.group1->compositeOpId(), COMPOSITE_ADD);
@@ -731,8 +732,8 @@ void KisImageTest::testMergeDownDestinationSameCompositeOp()
 {
     FlattenTestImage p;
 
-    TestUtil::ExternalImageChecker img("flatten", "imagetest");
-    TestUtil::ExternalImageChecker chk("mergedown_sameop_fastpath", "imagetest");
+    TestUtil::ReferenceImageChecker img("flatten", "imagetest");
+    TestUtil::ReferenceImageChecker chk("mergedown_sameop_fastpath", "imagetest");
 
     {
         QCOMPARE(p.layer8->compositeOpId(), COMPOSITE_ADD);
@@ -756,8 +757,8 @@ void KisImageTest::testMergeDownMultipleFrames()
 {
     FlattenTestImage p;
 
-    TestUtil::ExternalImageChecker img("flatten", "imagetest");
-    TestUtil::ExternalImageChecker chk("mergedown_simple", "imagetest");
+    TestUtil::ReferenceImageChecker img("flatten", "imagetest");
+    TestUtil::ReferenceImageChecker chk("mergedown_simple", "imagetest");
 
     QSet<int> initialFrames;
     {
@@ -823,8 +824,8 @@ void KisImageTest::testMergeMultiple()
 {
     FlattenTestImage p;
 
-    TestUtil::ExternalImageChecker img("flatten", "imagetest");
-    TestUtil::ExternalImageChecker chk("mergemultiple", "imagetest");
+    TestUtil::ReferenceImageChecker img("flatten", "imagetest");
+    TestUtil::ReferenceImageChecker chk("mergemultiple", "imagetest");
 
     {
         QList<KisNodeSP> selectedNodes;
@@ -1000,7 +1001,7 @@ void KisImageTest::testFlattenImage()
     FlattenTestImage p;
     KisImageSP image = p.image;
 
-    TestUtil::ExternalImageChecker img("flatten", "imagetest");
+    TestUtil::ReferenceImageChecker img("flatten", "imagetest");
 
     {
         KisLayerUtils::flattenImage(p.image);
@@ -1056,7 +1057,7 @@ struct FlattenPassThroughTestImage
 
         p.image->initialRefreshGraph();
 
-        TestUtil::ExternalImageChecker chk("passthrough", "imagetest");
+        TestUtil::ReferenceImageChecker chk("passthrough", "imagetest");
         QVERIFY(chk.checkDevice(p.image->projection(), p.image, "00_initial"));
     }
 
@@ -1079,7 +1080,7 @@ void KisImageTest::testFlattenPassThroughLayer()
 {
     FlattenPassThroughTestImage p;
 
-    TestUtil::ExternalImageChecker chk("passthrough", "imagetest");
+    TestUtil::ReferenceImageChecker chk("passthrough", "imagetest");
 
     {
         QCOMPARE(p.group1->compositeOpId(), COMPOSITE_OVER);
@@ -1099,7 +1100,7 @@ void KisImageTest::testMergeTwoPassThroughLayers()
 {
     FlattenPassThroughTestImage p;
 
-    TestUtil::ExternalImageChecker chk("passthrough", "imagetest");
+    TestUtil::ReferenceImageChecker chk("passthrough", "imagetest");
 
     {
         QCOMPARE(p.group1->compositeOpId(), COMPOSITE_OVER);
@@ -1118,7 +1119,7 @@ void KisImageTest::testMergePaintOverPassThroughLayer()
 {
     FlattenPassThroughTestImage p;
 
-    TestUtil::ExternalImageChecker chk("passthrough", "imagetest");
+    TestUtil::ReferenceImageChecker chk("passthrough", "imagetest");
 
     {
         QCOMPARE(p.group1->compositeOpId(), COMPOSITE_OVER);
@@ -1138,7 +1139,7 @@ void KisImageTest::testMergePassThroughOverPaintLayer()
 {
     FlattenPassThroughTestImage p;
 
-    TestUtil::ExternalImageChecker chk("passthrough", "imagetest");
+    TestUtil::ReferenceImageChecker chk("passthrough", "imagetest");
 
     {
         QCOMPARE(p.group1->compositeOpId(), COMPOSITE_OVER);

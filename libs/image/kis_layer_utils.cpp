@@ -283,14 +283,7 @@ namespace KisLayerUtils {
 
         void redo() override {
             foreach (KisNodeSP node, m_info->allSrcNodes()) {
-                recursiveApplyNodes(node,
-                    [] (KisNodeSP node) {
-                        KisDelayedUpdateNodeInterface *delayedUpdate =
-                            dynamic_cast<KisDelayedUpdateNodeInterface*>(node.data());
-                        if (delayedUpdate) {
-                            delayedUpdate->forceUpdateTimedNode();
-                        }
-                    });
+                forceAllDelayedNodesUpdate(node);
             }
         }
 
@@ -348,7 +341,7 @@ namespace KisLayerUtils {
         CreateMergedLayer(MergeDownInfoSP info) : m_info(info) {}
 
         void populateChildCommands() override {
-            // actual merging done by KisLayer::createMergedLayer (or specialized decendant)
+            // actual merging done by KisLayer::createMergedLayer (or specialized descendant)
             m_info->dstNode = m_info->currLayer->createMergedLayerTemplate(m_info->prevLayer);
 
             if (m_info->frames.size() > 0) {
@@ -426,7 +419,7 @@ namespace KisLayerUtils {
         MergeLayers(MergeDownInfoSP info) : m_info(info) {}
 
         void populateChildCommands() override {
-            // actual merging done by KisLayer::createMergedLayer (or specialized decendant)
+            // actual merging done by KisLayer::createMergedLayer (or specialized descendant)
             m_info->currLayer->fillMergedLayerTemplate(m_info->dstLayer(), m_info->prevLayer);
         }
 
@@ -845,6 +838,11 @@ namespace KisLayerUtils {
             applicator.applyCommand(new KeepMergedNodesSelected(info, false));
             applicator.applyCommand(new FillSelectionMasks(info));
             applicator.applyCommand(new CreateMergedLayer(info), KisStrokeJobData::BARRIER);
+
+            // NOTE: shape layer may have emitted spontaneous jobs during layer creation,
+            //       wait for them to complete!
+            applicator.applyCommand(new RefreshDelayedUpdateLayers(info), KisStrokeJobData::BARRIER);
+            applicator.applyCommand(new KUndo2Command(), KisStrokeJobData::BARRIER);
 
             // in two-layer mode we disable pass trhough only when the destination layer
             // is not a group layer
@@ -1357,7 +1355,19 @@ namespace KisLayerUtils {
         return recursiveFindNode(root,
             [uuid] (KisNodeSP node) {
                 return node->uuid() == uuid;
-            });
+        });
+    }
+
+    void forceAllDelayedNodesUpdate(KisNodeSP root)
+    {
+        KisLayerUtils::recursiveApplyNodes(root,
+        [] (KisNodeSP node) {
+            KisDelayedUpdateNodeInterface *delayedUpdate =
+                    dynamic_cast<KisDelayedUpdateNodeInterface*>(node.data());
+            if (delayedUpdate) {
+                delayedUpdate->forceUpdateTimedNode();
+            }
+        });
     }
 
 }

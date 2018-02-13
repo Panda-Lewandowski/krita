@@ -217,7 +217,7 @@ void KoShapeSavingContext::saveLayerSet(KoXmlWriter &xmlWriter) const
         xmlWriter.addAttribute("draw:name", layer->name());
         if (layer->isGeometryProtected())
             xmlWriter.addAttribute("draw:protected", "true");
-        if (! layer->isVisible())
+        if (! layer->isVisible(false))
             xmlWriter.addAttribute("draw:display", "none");
         xmlWriter.endElement();  // draw:layer
     }
@@ -293,7 +293,7 @@ bool KoShapeSavingContext::saveDataCenter(KoStore *store, KoXmlWriter* manifestW
             store->close();
             // TODO error handling
             if (ok) {
-                const QString mimetype = KisMimeDatabase::mimeTypeForFile(it.key());
+                const QString mimetype = KisMimeDatabase::mimeTypeForFile(it.key(), false);
                 manifestWriter->addManifestEntry(it.key(), mimetype);
             }
             else {

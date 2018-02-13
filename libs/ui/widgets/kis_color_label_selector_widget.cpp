@@ -101,6 +101,7 @@ void KisColorLabelSelectorWidget::setCurrentIndex(int index)
     m_d->selectedItem = index;
     m_d->updateItem(oldItem);
     m_d->updateItem(m_d->selectedItem);
+    m_d->hoveringItem = index;
 
     emit currentIndexChanged(m_d->selectedItem);
 }
@@ -136,7 +137,7 @@ void KisColorLabelSelectorWidget::resizeEvent(QResizeEvent *e)
     if (hasWideItems) {
         QStyleOption opt;
         opt.init(this);
-        // som ecopy-pasted code from QFusionStyle style
+        // some copy-pasted code from QFusionStyle style
         const int hmargin = style()->pixelMetric(QStyle::PM_MenuHMargin, &opt, this);
         const int icone = style()->pixelMetric(QStyle::PM_SmallIconSize, &opt, this);
         m_d->xMenuOffset = hmargin + icone + 6;

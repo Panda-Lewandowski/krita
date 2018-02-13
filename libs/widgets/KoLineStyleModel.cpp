@@ -79,21 +79,27 @@ int KoLineStyleModel::setLineStyle(Qt::PenStyle style, const QVector<qreal> &das
     if (style < Qt::CustomDashLine) {
         // a standard style
         m_hasTempStyle = false;
-        reset();
+        beginResetModel();
+        endResetModel();
+
         return style;
     } else if (style == Qt::CustomDashLine) {
         // a custom style -> check if already added
         int index = m_styles.indexOf(dashes, Qt::CustomDashLine);
         if (index < 0) {
-            // not already added -> add temporarly
+            // not already added -> add temporarily
             m_tempStyle = dashes;
             m_hasTempStyle = true;
-            reset();
+            beginResetModel();
+            endResetModel();
+
             return m_styles.count();
         } else {
             // already added -> return index
             m_hasTempStyle = false;
-            reset();
+            beginResetModel();
+            endResetModel();
+
             return index;
         }
     }

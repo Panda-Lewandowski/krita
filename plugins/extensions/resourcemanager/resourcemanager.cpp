@@ -27,7 +27,7 @@
 
 #include <QMessageBox>
 #include <QGlobalStatic>
-#include <QDesktopServices>
+#include <QStandardPaths>
 
 #include <klocalizedstring.h>
 #include <KoResourcePaths.h>
@@ -48,6 +48,8 @@
 #include <kis_paintop_settings.h>
 #include "dlg_bundle_manager.h"
 #include "dlg_create_bundle.h"
+#include <KisPaintopSettingsIds.h>
+#include "krita_container_utils.h"
 
 class ResourceManager::Private {
 
@@ -173,17 +175,19 @@ KisResourceBundle *ResourceManager::saveBundle(const DlgCreateBundle &dlgCreateB
         KoResource *res = preset.data();
         newBundle->addResource("kis_paintoppresets", res->filename(), d->paintopServer->assignedTagsList(res), res->md5());
         KisPaintOpSettingsSP settings = preset->settings();
-        if (settings->hasProperty("requiredBrushFile")) {
-            QString brushFile = settings->getString("requiredBrushFile");
+
+        QStringList requiredFiles = settings->getStringList(KisPaintOpUtils::RequiredBrushFilesListTag);
+        requiredFiles << settings->getString(KisPaintOpUtils::RequiredBrushFileTag);
+        KritaUtils::makeContainerUnique(requiredFiles);
+
+        Q_FOREACH (const QString &brushFile, requiredFiles) {
             KisBrush *brush = d->brushServer->resourceByFilename(brushFile).data();
             if (brush) {
                 newBundle->addResource("kis_brushes", brushFile, d->brushServer->assignedTagsList(brush), brush->md5());
-            }
-            else {
+            } else {
                 qWarning() << "There is no brush with name" << brushFile;
             }
         }
-
     }
 
     res = dlgCreateBundle.selectedWorkspaces();
@@ -225,7 +229,7 @@ void ResourceManager::slotManageBundles()
 QStringList ResourceManager::importResources(const QString &title, const QStringList &mimes) const
 {
     KoFileDialog dialog(m_view->mainWindow(), KoFileDialog::OpenFiles, "krita_resources");
-    dialog.setDefaultDir(QDesktopServices::storageLocation(QDesktopServices::HomeLocation));
+    dialog.setDefaultDir(QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
     dialog.setCaption(title);
     dialog.setMimeTypeFilters(mimes);
     return dialog.filenames();

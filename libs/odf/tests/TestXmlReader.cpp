@@ -57,7 +57,7 @@ void TestXmlReader::testNode()
     xmlstream << "  <europe/>";
     xmlstream << "  <america/>";
     xmlstream << "  <australia/>";
-    xmlstream << "  <antartic/>";
+    xmlstream << "  <antarctic/>";
     xmlstream << " </continents>";
     xmlstream << " <oceans>";
     xmlstream << "  <pacific/>";
@@ -1088,7 +1088,7 @@ void TestXmlReader::testUnload()
     xmlstream << "<europe/>";
     xmlstream << "<america/>";
     xmlstream << "<australia/>";
-    xmlstream << "<antartic/>";
+    xmlstream << "<antarctic/>";
     xmlstream << "</continents>";
     xmlstream << "<oceans>";
     xmlstream << "<pacific/>";
@@ -2486,18 +2486,6 @@ void TestXmlReader::testLargeOpenDocumentSpreadsheet()
 
 
     QTime timer;
-
-#if 0
-    // just to test parsing speed with plain dumb handler
-    QXmlStreamReader *reader = new QXmlStreamReader(xmldevice);
-    reader->setNamespaceProcessing(true);
-    timer.start();
-    ParseError error = parseDocument(*reader, doc);
-    printf("Large spreadsheet: QXmlStreamReader parsing time is %d ms\n", timer.elapsed());
-    delete reader;
-    xmldevice.seek(0);
-#endif
-
     KoXmlDocument doc;
 
     timer.start();
@@ -2620,7 +2608,7 @@ void TestXmlReader::testExternalOpenDocumentSpreadsheet(const QString& filename)
         return;
     }
 
-    printf("Procesing content.xml....\n");
+    printf("Processing content.xml....\n");
 
     QString errorMsg;
     int errorLine = 0;

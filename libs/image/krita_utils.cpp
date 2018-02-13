@@ -37,6 +37,8 @@
 #include "kis_sequential_iterator.h"
 #include "kis_random_accessor_ng.h"
 
+#include <KisRenderedDab.h>
+
 
 namespace KritaUtils
 {
@@ -50,13 +52,16 @@ namespace KritaUtils
 
     QVector<QRect> splitRectIntoPatches(const QRect &rc, const QSize &patchSize)
     {
+        using namespace KisAlgebra2D;
+
+
         QVector<QRect> patches;
 
-        qint32 firstCol = rc.x() / patchSize.width();
-        qint32 firstRow = rc.y() / patchSize.height();
+        qint32 firstCol = divideFloor(rc.x(), patchSize.width());
+        qint32 firstRow = divideFloor(rc.y(), patchSize.height());
 
-        qint32 lastCol = (rc.x() + rc.width()) / patchSize.width();
-        qint32 lastRow = (rc.y() + rc.height()) / patchSize.height();
+        qint32 lastCol = divideFloor(rc.x() + rc.width(), patchSize.width());
+        qint32 lastRow = divideFloor(rc.y() + rc.height(), patchSize.height());
 
         for(qint32 i = firstRow; i <= lastRow; i++) {
             for(qint32 j = firstCol; j <= lastCol; j++) {
@@ -400,18 +405,18 @@ namespace KritaUtils
 
     void applyToAlpha8Device(KisPaintDeviceSP dev, const QRect &rc, std::function<void(quint8)> func) {
         KisSequentialConstIterator dstIt(dev, rc);
-        do {
+        while (dstIt.nextPixel()) {
             const quint8 *dstPtr = dstIt.rawDataConst();
             func(*dstPtr);
-        } while (dstIt.nextPixel());
+        }
     }
 
     void filterAlpha8Device(KisPaintDeviceSP dev, const QRect &rc, std::function<quint8(quint8)> func) {
         KisSequentialIterator dstIt(dev, rc);
-        do {
+        while (dstIt.nextPixel()) {
             quint8 *dstPtr = dstIt.rawData();
             *dstPtr = func(*dstPtr);
-        } while (dstIt.nextPixel());
+        }
     }
 
     qreal estimatePortionOfTransparentPixels(KisPaintDeviceSP dev, const QRect &rect, qreal samplePortion) {
@@ -440,5 +445,33 @@ namespace KritaUtils
         }
 
         return qreal(numTransparentPixels) / numPixels;
+    }
+
+    void mirrorDab(Qt::Orientation dir, const QPoint &center, KisRenderedDab *dab)
+    {
+        const QRect rc = dab->realBounds();
+
+        if (dir == Qt::Horizontal) {
+            const int mirrorX = -((rc.x() + rc.width()) - center.x()) + center.x();
+
+            dab->device->mirror(true, false);
+            dab->offset.rx() = mirrorX;
+        } else /* if (dir == Qt::Vertical) */ {
+            const int mirrorY = -((rc.y() + rc.height()) - center.y()) + center.y();
+
+            dab->device->mirror(false, true);
+            dab->offset.ry() = mirrorY;
+        }
+    }
+
+    void mirrorRect(Qt::Orientation dir, const QPoint &center, QRect *rc)
+    {
+        if (dir == Qt::Horizontal) {
+            const int mirrorX = -((rc->x() + rc->width()) - center.x()) + center.x();
+            rc->moveLeft(mirrorX);
+        } else /* if (dir == Qt::Vertical) */ {
+            const int mirrorY = -((rc->y() + rc->height()) - center.y()) + center.y();
+            rc->moveTop(mirrorY);
+        }
     }
 }

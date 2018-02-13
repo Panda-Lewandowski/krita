@@ -33,7 +33,7 @@
 #include <QSlider>
 #include <QToolButton>
 #include <QThread>
-#include <QDesktopServices>
+#include <QStandardPaths>
 #include <QGridLayout>
 #include <QRadioButton>
 #include <QGroupBox>
@@ -61,7 +61,7 @@
 #include <KoResourcePaths.h>
 #include "kis_action_registry.h"
 
-#include "widgets/squeezedcombobox.h"
+#include <squeezedcombobox.h>
 #include "kis_clipboard.h"
 #include "widgets/kis_cmb_idlist.h"
 #include "KoColorSpace.h"
@@ -108,6 +108,10 @@ GeneralTab::GeneralTab(QWidget *_parent, const char *_name)
     m_cmbOutlineShape->addItem(i18n("Preview Outline"));
     m_cmbOutlineShape->addItem(i18n("Tilt Outline"));
 
+    m_cmbKineticScrollingGesture->addItem(i18n("Disabled"));
+    m_cmbKineticScrollingGesture->addItem(i18n("On Touch Drag"));
+    m_cmbKineticScrollingGesture->addItem(i18n("On Click Drag"));
+
     m_cmbCursorShape->setCurrentIndex(cfg.newCursorStyle());
     m_cmbOutlineShape->setCurrentIndex(cfg.newOutlineStyle());
 
@@ -123,7 +127,16 @@ GeneralTab::GeneralTab(QWidget *_parent, const char *_name)
     m_hideSplashScreen->setChecked(cfg.hideSplashScreen());
 
     KConfigGroup group = KSharedConfig::openConfig()->group("File Dialogs");
-    m_chkNativeFileDialog->setChecked(!group.readEntry("DontUseNativeFileDialog", true));
+    bool dontUseNative = true;
+#ifdef Q_OS_UNIX
+    if (qgetenv("XDG_CURRENT_DESKTOP") == "KDE") {
+        dontUseNative = false;
+    }
+#endif
+#ifdef Q_OS_WIN
+    dontUseNative = false;
+#endif
+    m_chkNativeFileDialog->setChecked(!group.readEntry("DontUseNativeFileDialog", dontUseNative));
 
     intMaxBrushSize->setValue(cfg.readEntry("maximumBrushSize", 1000));
 
@@ -143,6 +156,9 @@ GeneralTab::GeneralTab(QWidget *_parent, const char *_name)
     m_chkSingleApplication->setChecked(kritarc.value("EnableSingleApplication", true).toBool());
 
     m_radioToolOptionsInDocker->setChecked(cfg.toolOptionsInDocker());
+    m_cmbKineticScrollingGesture->setCurrentIndex(cfg.kineticScrollingGesture());
+    m_kineticScrollingSensitivity->setValue(cfg.kineticScrollingSensitivity());
+    m_chkKineticScrollingScrollbar->setChecked(cfg.kineticScrollingScrollbar());
     m_chkSwitchSelectionCtrlAlt->setChecked(cfg.switchSelectionCtrlAlt());
     chkEnableTouch->setChecked(!cfg.disableTouchOnCanvas());
     m_chkConvertOnImport->setChecked(cfg.convertToImageColorspaceOnImport());
@@ -187,6 +203,9 @@ void GeneralTab::setDefault()
 
     m_chkHiDPI->setChecked(true);
     m_radioToolOptionsInDocker->setChecked(cfg.toolOptionsInDocker(true));
+    m_cmbKineticScrollingGesture->setCurrentIndex(cfg.kineticScrollingGesture(true));
+    m_kineticScrollingSensitivity->setValue(cfg.kineticScrollingSensitivity(true));
+    m_chkKineticScrollingScrollbar->setChecked(cfg.kineticScrollingScrollbar(true));
     m_chkSwitchSelectionCtrlAlt->setChecked(cfg.switchSelectionCtrlAlt(true));
     chkEnableTouch->setChecked(!cfg.disableTouchOnCanvas(true));
     m_chkConvertOnImport->setChecked(cfg.convertToImageColorspaceOnImport(true));
@@ -258,6 +277,21 @@ bool GeneralTab::toolOptionsInDocker()
     return m_radioToolOptionsInDocker->isChecked();
 }
 
+int GeneralTab::kineticScrollingGesture()
+{
+    return m_cmbKineticScrollingGesture->currentIndex();
+}
+
+int GeneralTab::kineticScrollingSensitivity()
+{
+    return m_kineticScrollingSensitivity->value();
+}
+
+bool GeneralTab::kineticScrollingScrollbar()
+{
+    return m_chkKineticScrollingScrollbar->isChecked();
+}
+
 bool GeneralTab::switchSelectionCtrlAlt()
 {
     return m_chkSwitchSelectionCtrlAlt->isChecked();
@@ -279,7 +313,7 @@ void GeneralTab::getBackgroundImage()
 {
     KoFileDialog dialog(this, KoFileDialog::OpenFile, "BackgroundImages");
     dialog.setCaption(i18n("Select a Background Image"));
-    dialog.setDefaultDir(QDesktopServices::storageLocation(QDesktopServices::PicturesLocation));
+    dialog.setDefaultDir(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation));
     dialog.setImageFilters();
 
     QString fn = dialog.filename();
@@ -443,7 +477,7 @@ void ColorSettingsTab::installProfile()
 {
     KoFileDialog dialog(this, KoFileDialog::OpenFiles, "OpenDocumentICC");
     dialog.setCaption(i18n("Install Color Profiles"));
-    dialog.setDefaultDir(QDesktopServices::storageLocation(QDesktopServices::HomeLocation));
+    dialog.setDefaultDir(QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
     dialog.setMimeTypeFilters(QStringList() << "application/vnd.iccprofile", "application/vnd.iccprofile");
     QStringList profileNames = dialog.filenames();
 
@@ -700,10 +734,10 @@ PerformanceTab::PerformanceTab(QWidget *parent, const char *name)
     sliderThreadsLimit->setRange(1, QThread::idealThreadCount());
     sliderFrameClonesLimit->setRange(1, QThread::idealThreadCount());
     sliderFpsLimit->setRange(20, 100);
+    sliderFpsLimit->setSuffix(i18n(" fps"));
 
     connect(sliderThreadsLimit, SIGNAL(valueChanged(int)), SLOT(slotThreadsLimitChanged(int)));
     connect(sliderFrameClonesLimit, SIGNAL(valueChanged(int)), SLOT(slotFrameClonesLimitChanged(int)));
-    connect(sliderFpsLimit, SIGNAL(valueChanged(int)), SLOT(slotFpsLimitChanged(int)));
 
     load(false);
 }
@@ -729,15 +763,16 @@ void PerformanceTab::load(bool requestDefault)
 
     m_lastUsedThreadsLimit = cfg.maxNumberOfThreads(requestDefault);
     m_lastUsedClonesLimit = cfg.frameRenderingClones(requestDefault);
-    m_lastUsedFpsLimit = cfg.fpsLimit(requestDefault);
 
     sliderThreadsLimit->setValue(m_lastUsedThreadsLimit);
     sliderFrameClonesLimit->setValue(m_lastUsedClonesLimit);
-    sliderFpsLimit->setValue(m_lastUsedFpsLimit);
+
+    sliderFpsLimit->setValue(cfg.fpsLimit(requestDefault));
 
     {
         KisConfig cfg2;
         chkOpenGLFramerateLogging->setChecked(cfg2.enableOpenGLFramerateLogging(requestDefault));
+        chkBrushSpeedLogging->setChecked(cfg2.enableBrushSpeedLogging(requestDefault));
         chkDisableVectorOptimizations->setChecked(cfg2.enableAmdVectorizationWorkaround(requestDefault));
     }
 }
@@ -764,6 +799,7 @@ void PerformanceTab::save()
     {
         KisConfig cfg2;
         cfg2.setEnableOpenGLFramerateLogging(chkOpenGLFramerateLogging->isChecked());
+        cfg2.setEnableBrushSpeedLogging(chkBrushSpeedLogging->isChecked());
         cfg2.setEnableAmdVectorizationWorkaround(chkDisableVectorOptimizations->isChecked());
     }
 }
@@ -791,13 +827,6 @@ void PerformanceTab::slotFrameClonesLimitChanged(int value)
     KisSignalsBlocker b(sliderThreadsLimit);
     sliderThreadsLimit->setValue(qMax(m_lastUsedThreadsLimit, value));
     m_lastUsedClonesLimit = value;
-}
-
-void PerformanceTab::slotFpsLimitChanged(int value)
-{
-    KisSignalsBlocker b(sliderFrameClonesLimit);
-    sliderFrameClonesLimit->setValue(qMax(m_lastUsedFpsLimit, value));
-    m_lastUsedFpsLimit = value;
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -867,6 +896,24 @@ DisplaySettingsTab::DisplaySettingsTab(QWidget *parent, const char *name)
             cmbFilterMode->removeItem(3);
         }
     }
+
+    const QStringList openglWarnings = KisOpenGL::getOpenGLWarnings();
+    if (openglWarnings.isEmpty()) {
+        lblOpenGLWarnings->setVisible(false);
+    } else {
+        QString text("<span style=\"color: yellow;\">&#x26A0;</span> ");
+        text.append(i18n("Warning(s):"));
+        text.append("<ul>");
+        Q_FOREACH (const QString &warning, openglWarnings) {
+            text.append("<li>");
+            text.append(warning.toHtmlEscaped());
+            text.append("</li>");
+        }
+        text.append("</ul>");
+        lblOpenGLWarnings->setText(text);
+        lblOpenGLWarnings->setVisible(true);
+    }
+
     if (qApp->applicationName() == "kritasketch" || qApp->applicationName() == "kritagemini") {
        grpOpenGL->setVisible(false);
        grpOpenGL->setMaximumHeight(0);
@@ -903,8 +950,6 @@ DisplaySettingsTab::DisplaySettingsTab(QWidget *parent, const char *name)
     gridColor.fromQColor(cfg.getPixelGridColor());
     pixelGridColorButton->setColor(gridColor);
     pixelGridDrawingThresholdBox->setValue(cfg.getPixelGridDrawingThreshold() * 100);
-    grpPixelGrid->setEnabled(true);
-    grpPixelGrid->setChecked(cfg.pixelGridEnabled());
 }
 
 void DisplaySettingsTab::setDefault()
@@ -955,8 +1000,6 @@ void DisplaySettingsTab::setDefault()
     gridColor.fromQColor(cfg.getPixelGridColor(true));
     pixelGridColorButton->setColor(gridColor);
     pixelGridDrawingThresholdBox->setValue(cfg.getPixelGridDrawingThreshold(true) * 100);
-    grpPixelGrid->setEnabled(true);
-    grpPixelGrid->setChecked(cfg.pixelGridEnabled(true));
 }
 
 void DisplaySettingsTab::slotUseOpenGLToggled(bool isChecked)
@@ -1002,7 +1045,7 @@ KisDlgPreferences::KisDlgPreferences(QWidget* parent, const char* name)
     setStandardButtons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::RestoreDefaults);
     button(QDialogButtonBox::Ok)->setDefault(true);
 
-    setFaceType(KPageDialog::List);
+    setFaceType(KPageDialog::Tree);
 
     // General
     KoVBox *vbox = new KoVBox();
@@ -1085,6 +1128,7 @@ KisDlgPreferences::KisDlgPreferences(QWidget* parent, const char* name)
 
 
     QPushButton *restoreDefaultsButton = button(QDialogButtonBox::RestoreDefaults);
+    restoreDefaultsButton->setText("Restore Defaults");
 
     connect(this, SIGNAL(accepted()), m_inputConfiguration, SLOT(saveChanges()));
     connect(this, SIGNAL(rejected()), m_inputConfiguration, SLOT(revertChanges()));
@@ -1176,6 +1220,9 @@ bool KisDlgPreferences::editPreferences()
         kritarc.setValue("EnableSingleApplication", dialog->m_general->m_chkSingleApplication->isChecked());
 
         cfg.setToolOptionsInDocker(dialog->m_general->toolOptionsInDocker());
+        cfg.setKineticScrollingGesture(dialog->m_general->kineticScrollingGesture());
+        cfg.setKineticScrollingSensitivity(dialog->m_general->kineticScrollingSensitivity());
+        cfg.setKineticScrollingScrollbar(dialog->m_general->kineticScrollingScrollbar());
         cfg.setSwitchSelectionCtrlAlt(dialog->m_general->switchSelectionCtrlAlt());
         cfg.setDisableTouchOnCanvas(!dialog->m_general->chkEnableTouch->isChecked());
         cfg.setConvertToImageColorspaceOnImport(dialog->m_general->convertToImageColorspaceOnImport());
@@ -1261,7 +1308,6 @@ bool KisDlgPreferences::editPreferences()
         cfg.setCursorMainColor(dialog->m_general->cursorColorBtutton->color().toQColor());
         cfg.setPixelGridColor(dialog->m_displaySettings->pixelGridColorButton->color().toQColor());
         cfg.setPixelGridDrawingThreshold(dialog->m_displaySettings->pixelGridDrawingThresholdBox->value() / 100);
-        cfg.enablePixelGrid(dialog->m_displaySettings->grpPixelGrid->isChecked());
 
         dialog->m_authorPage->apply();
 

@@ -90,6 +90,7 @@ KisCurveOptionWidget::KisCurveOptionWidget(KisCurveOption* curveOption, const QS
 
 
     connect(m_curveOptionWidget->checkBoxUseCurve, SIGNAL(stateChanged(int))  , SLOT(updateValues()));
+    connect(m_curveOptionWidget->curveMode, SIGNAL(currentIndexChanged(int)), SLOT(updateMode()));
     connect(m_curveOptionWidget->slider, SIGNAL(valueChanged(qreal)), SLOT(updateValues()));
 }
 
@@ -106,13 +107,14 @@ void KisCurveOptionWidget::writeOptionSetting(KisPropertiesConfigurationSP setti
 
 void KisCurveOptionWidget::readOptionSetting(const KisPropertiesConfigurationSP setting)
 {
-    setting->dump();
+    //setting->dump();
 
     m_curveOption->readOptionSetting(setting);
 
     m_curveOptionWidget->checkBoxUseCurve->setChecked(m_curveOption->isCurveUsed());
     m_curveOptionWidget->slider->setValue(m_curveOption->value());
     m_curveOptionWidget->checkBoxUseSameCurve->setChecked(m_curveOption->isSameCurveUsed());
+    m_curveOptionWidget->curveMode->setCurrentIndex(m_curveOption->getCurveMode());
 
     disableWidgets(!m_curveOption->isCurveUsed());
 
@@ -186,6 +188,12 @@ void KisCurveOptionWidget::updateValues()
     m_curveOption->setValue(m_curveOptionWidget->slider->value());
     m_curveOption->setCurveUsed(m_curveOptionWidget->checkBoxUseCurve->isChecked());
     disableWidgets(!m_curveOptionWidget->checkBoxUseCurve->isChecked());
+    emitSettingChanged();
+}
+
+void KisCurveOptionWidget::updateMode()
+{
+    m_curveOption->setCurveMode(m_curveOptionWidget->curveMode->currentIndex());
     emitSettingChanged();
 }
 

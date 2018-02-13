@@ -44,20 +44,12 @@ class KRITAPIGMENT_EXPORT KoColor : public boost::equality_comparable<KoColor>
 {
 
 public:
-    static void init();
-
     /// Create an empty KoColor. It will be valid, but also black and transparent
-    KoColor() {
-        const KoColor * const prefab = s_prefab;
-
-        // assert that KoColor::init was called and everything is set up properly.
-        KIS_ASSERT_X(prefab != nullptr, "KoColor::KoColor()", "KoColor not initialized yet.");
-
-        *this = *prefab;
-    }
+    KoColor();
 
     /// Create a null KoColor. It will be valid, but all channels will be set to 0
     explicit KoColor(const KoColorSpace * colorSpace);
+
     /// Create a KoColor from a QColor. The QColor is immediately converted to native. The QColor
     /// is assumed to have the current monitor profile.
     KoColor(const QColor & color, const KoColorSpace * colorSpace);
@@ -93,9 +85,12 @@ public:
     }
 
     bool operator==(const KoColor &other) const {
-        if (*colorSpace() != *other.colorSpace())
+        if (*colorSpace() != *other.colorSpace()) {
             return false;
-        Q_ASSERT(m_size == other.m_size);
+        }
+        if (m_size != other.m_size) {
+            return false;
+        }
         return memcmp(m_data, other.m_data, m_size) == 0;
     }
 
@@ -108,12 +103,24 @@ public:
     const KoColorProfile *profile() const;
 
     /// Convert this KoColor to the specified colorspace. If the specified colorspace is the
-    /// same as the original colorspace, do nothing. Returns the converted KoColor.
+    /// same as the original colorspace, do nothing
     void convertTo(const KoColorSpace * cs,
                    KoColorConversionTransformation::Intent renderingIntent,
                    KoColorConversionTransformation::ConversionFlags conversionFlags);
 
     void convertTo(const KoColorSpace * cs);
+
+    /// Copies this color and converts it to the specified colorspace. If the specified colorspace is the
+    /// same as the original colorspace, just returns a copy
+    KoColor convertedTo(const KoColorSpace * cs,
+                        KoColorConversionTransformation::Intent renderingIntent,
+                        KoColorConversionTransformation::ConversionFlags conversionFlags) const;
+
+    /// Copies this color and converts it to the specified colorspace. If the specified colorspace is the
+    /// same as the original colorspace, just returns a copy
+    KoColor convertedTo(const KoColorSpace * cs) const;
+
+
 
     /// assign new profile without converting pixel data
     void setProfile(const KoColorProfile *profile);
@@ -162,6 +169,35 @@ public:
     const quint8 * data() const {
         return m_data;
     }
+
+
+    /**
+     * Channelwise subtracts \p value from *this and stores the result in *this
+     *
+     * Throws a safe assert if the colorspaces of the two colors are different
+     */
+    void subtract(const KoColor &value);
+
+    /**
+     * Channelwise subtracts \p value from a copy of *this and returns the result
+     *
+     * Throws a safe assert if the colorspaces of the two colors are different
+     */
+    KoColor subtracted(const KoColor &value) const;
+
+    /**
+     * Channelwise adds \p value to *this and stores the result in *this
+     *
+     * Throws a safe assert if the colorspaces of the two colors are different
+     */
+    void add(const KoColor &value);
+
+    /**
+     * Channelwise adds \p value to a copy of *this and returns the result
+     *
+     * Throws a safe assert if the colorspaces of the two colors are different
+     */
+    KoColor added(const KoColor &value) const;
 
     /**
      * Serialize this color following Create's swatch color specification available
@@ -230,10 +266,11 @@ private:
     const KoColorSpace *m_colorSpace;
     quint8 m_data[MAX_PIXEL_SIZE];
     quint8 m_size;
-
-    static const KoColor *s_prefab;
 };
 
 Q_DECLARE_METATYPE(KoColor)
+
+KRITAPIGMENT_EXPORT QDebug operator<<(QDebug dbg, const KoColor &color);
+
 
 #endif

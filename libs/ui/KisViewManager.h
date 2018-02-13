@@ -105,8 +105,9 @@ public:  // Krita specific interfaces
       * KisView will take care of removing the items when the view GUI is deactivated
       * and readding them when it is reactivated.
       * The parameters are the same as QStatusBar::addWidget().
-      */
+    */
     void addStatusBarItem(QWidget * widget, int stretch = 0, bool permanent = false);
+
 
     /**
       * Remove a widget from the statusbar for this view.
@@ -212,6 +213,8 @@ public:
     /// with a non-null value. To make it return shell() again, simply pass null to this function.
     void setQtMainWindow(QMainWindow* newMainWindow);
 
+    static void initializeResourceManager(KoCanvasResourceManager *resourceManager);
+
 public Q_SLOTS:
 
     void switchCanvasOnly(bool toggled);
@@ -252,6 +255,7 @@ private Q_SLOTS:
     void guiUpdateTimeout();
     void changeAuthorProfile(const QString &profileName);
     void slotUpdateAuthorProfileActions();
+    void slotUpdatePixelGridAction();
     void slotSaveShowRulersState(bool value);
     void slotSaveRulersTrackMouseState(bool value);
 

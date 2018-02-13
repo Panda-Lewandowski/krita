@@ -227,7 +227,7 @@ bool KisKraLoadVisitor::visit(KisAdjustmentLayer* layer)
     return result;
 }
 
-bool KisKraLoadVisitor::visit(KisGeneratorLayer* layer)
+bool KisKraLoadVisitor::visit(KisGeneratorLayer *layer)
 {
     if (!loadMetaData(layer)) {
         return false;
@@ -235,12 +235,9 @@ bool KisKraLoadVisitor::visit(KisGeneratorLayer* layer)
     bool result = true;
 
     loadNodeKeyframes(layer);
-
     result = loadSelection(getLocation(layer), layer->internalSelection());
-
     result = loadFilterConfiguration(layer->filter().data(), getLocation(layer, DOT_FILTERCONFIG));
     layer->update();
-
     result = visitAll(layer);
     return result;
 }
@@ -391,6 +388,7 @@ bool KisKraLoadVisitor::visit(KisColorizeMask *mask)
     mask->setKeyStrokesDirect(QList<KisLazyFillTools::KeyStroke>::fromVector(strokes));
 
     loadPaintDevice(mask->coloringProjection(), COLORIZE_COLORING_DEVICE);
+    mask->resetCache();
 
     m_store->popDirectory();
     return true;
@@ -533,6 +531,7 @@ bool KisKraLoadVisitor::loadFilterConfiguration(KisFilterConfigurationSP kfc, co
             } else {
                 kfc->fromXML(e);
             }
+            kfc = loadDeprecatedFilter(kfc);
             return true;
         }
     }
@@ -542,7 +541,6 @@ bool KisKraLoadVisitor::loadFilterConfiguration(KisFilterConfigurationSP kfc, co
 
 bool KisKraLoadVisitor::loadMetaData(KisNode* node)
 {
-    dbgFile << "Load metadata for " << node->name();
     KisLayer* layer = qobject_cast<KisLayer*>(node);
     if (!layer) return true;
 
@@ -552,7 +550,7 @@ bool KisKraLoadVisitor::loadMetaData(KisNode* node)
         if (backend)
             dbgFile << "Backend " << backend->id() << " does not support loading.";
         else
-            dbgFile << "Could not load the XMP backenda t all";
+            dbgFile << "Could not load the XMP backend at all";
         return true;
     }
 
@@ -660,4 +658,38 @@ void KisKraLoadVisitor::loadNodeKeyframes(KisNode *node)
             channel->loadXML(child);
         }
     }
+}
+
+KisFilterConfigurationSP KisKraLoadVisitor::loadDeprecatedFilter(KisFilterConfigurationSP cfg)
+{
+    if (cfg->getString("legacy") == "left edge detections") {
+        cfg->setProperty("horizRadius", 1);
+        cfg->setProperty("vertRadius", 1);
+        cfg->setProperty("type", "prewitt");
+        cfg->setProperty("output", "yFall");
+        cfg->setProperty("lockAspect", true);
+        cfg->setProperty("transparency", false);
+    } else if (cfg->getString("legacy") == "right edge detections") {
+        cfg->setProperty("horizRadius", 1);
+        cfg->setProperty("vertRadius", 1);
+        cfg->setProperty("type", "prewitt");
+        cfg->setProperty("output", "yGrowth");
+        cfg->setProperty("lockAspect", true);
+        cfg->setProperty("transparency", false);
+    } else if (cfg->getString("legacy") == "top edge detections") {
+        cfg->setProperty("horizRadius", 1);
+        cfg->setProperty("vertRadius", 1);
+        cfg->setProperty("type", "prewitt");
+        cfg->setProperty("output", "xGrowth");
+        cfg->setProperty("lockAspect", true);
+        cfg->setProperty("transparency", false);
+    } else if (cfg->getString("legacy") == "bottom edge detections") {
+        cfg->setProperty("horizRadius", 1);
+        cfg->setProperty("vertRadius", 1);
+        cfg->setProperty("type", "prewitt");
+        cfg->setProperty("output", "xFall");
+        cfg->setProperty("lockAspect", true);
+        cfg->setProperty("transparency", false);
+    }
+    return cfg;
 }

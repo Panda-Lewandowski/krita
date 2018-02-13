@@ -23,6 +23,7 @@
 #include <KoColor.h>
 #include "stroke_testing_utils.h"
 #include "strokes/freehand_stroke.h"
+#include "strokes/KisFreehandStrokeInfo.h"
 #include "kis_resources_snapshot.h"
 #include "kis_image.h"
 #include "kis_painter.h"
@@ -37,6 +38,7 @@ public:
           m_useLod(useLod),
           m_flipLineDirection(false)
     {
+        setBaseFuzziness(3);
     }
 
     void setFlipLineDirection(bool value) {
@@ -85,16 +87,14 @@ protected:
         }
     }
 
-    KisStrokeStrategy* createStroke(bool indirectPainting,
-                                    KisResourcesSnapshotSP resources,
+    KisStrokeStrategy* createStroke(KisResourcesSnapshotSP resources,
                                     KisImageWSP image) override {
         Q_UNUSED(image);
 
-        FreehandStrokeStrategy::PainterInfo *painterInfo =
-            new FreehandStrokeStrategy::PainterInfo();
+        KisFreehandStrokeInfo *strokeInfo = new KisFreehandStrokeInfo();
 
         QScopedPointer<FreehandStrokeStrategy> stroke(
-            new FreehandStrokeStrategy(indirectPainting, COMPOSITE_ALPHA_DARKEN, resources, painterInfo, kundo2_noi18n("Freehand Stroke")));
+            new FreehandStrokeStrategy(resources, strokeInfo, kundo2_noi18n("Freehand Stroke")));
 
         return stroke.take();
     }
@@ -106,6 +106,8 @@ protected:
     }
 
     void addPaintingJobs(KisImageWSP image, KisResourcesSnapshotSP resources, int iteration) override {
+        Q_UNUSED(resources);
+
         KisPaintInformation pi1;
         KisPaintInformation pi2;
 
@@ -118,14 +120,14 @@ protected:
         }
 
         QScopedPointer<KisStrokeJobData> data(
-            new FreehandStrokeStrategy::Data(resources->currentNode(),
-                                             0, pi1, pi2));
+            new FreehandStrokeStrategy::Data(0, pi1, pi2));
 
         image->addJob(strokeId(), data.take());
+        image->addJob(strokeId(), new FreehandStrokeStrategy::UpdateData(true));
     }
 
 private:
-    FreehandStrokeStrategy::PainterInfo *m_painterInfo;
+    KisFreehandStrokeInfo *m_strokeInfo;
     bool m_useLod;
     bool m_flipLineDirection;
     QScopedPointer<QColor> m_paintColor;

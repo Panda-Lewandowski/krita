@@ -52,6 +52,7 @@
 #include <kis_brush_server.h>
 #include <KoResourceServerProvider.h>
 #include <kis_action_registry.h>
+#include <kis_icon_utils.h>
 
 #include "View.h"
 #include "Document.h"
@@ -311,7 +312,7 @@ QStringList Krita::recentDocuments() const
     return recentDocuments;
 }
 
-Document* Krita::createDocument(int width, int height, const QString &name, const QString &colorModel, const QString &colorDepth, const QString &profile)
+Document* Krita::createDocument(int width, int height, const QString &name, const QString &colorModel, const QString &colorDepth, const QString &profile, double resolution)
 {
     KisDocument *document = KisPart::instance()->createDocument();
     KisPart::instance()->addDocument(document);
@@ -322,7 +323,7 @@ Document* Krita::createDocument(int width, int height, const QString &name, cons
     qc.setAlpha(0);
     KoColor bgColor(qc, cs);
 
-    if (!document->newImage(name, width, height, cs, bgColor, true, 1, "", 100.0)) {
+    if (!document->newImage(name, width, height, cs, bgColor, true, 1, "", double(resolution / 72) )) {
         qDebug() << "Could not create a new image";
         return 0;
     }
@@ -347,7 +348,7 @@ Window* Krita::openWindow()
     return new Window(mw);
 }
 
-Action *Krita::createAction(const QString &id, const QString &text)
+Action *Krita::createAction(const QString &id, const QString &text, bool addToScriptMenu)
 {
     KisAction *action = new KisAction(text, this);
     action->setObjectName(id);
@@ -360,7 +361,9 @@ Action *Krita::createAction(const QString &id, const QString &text)
     action->setActivationFlags((KisAction::ActivationFlags) activationFlags);
     action->setActivationConditions((KisAction::ActivationConditions) activationConditions);
 
-    KisPart::instance()->addScriptAction(action);
+    if (addToScriptMenu) {
+        KisPart::instance()->addScriptAction(action);
+    }
     return new Action(action->objectName(), action);
 }
 
@@ -384,6 +387,11 @@ QString Krita::readSetting(const QString &group, const QString &name, const QStr
 {
     KConfigGroup grp = KSharedConfig::openConfig()->group(group);
     return grp.readEntry(name, defaultValue);
+}
+
+QIcon Krita::icon(QString &iconName) const
+{
+    return KisIconUtils::loadIcon(iconName);
 }
 
 void Krita::addDockWidgetFactory(DockWidgetFactoryBase* factory)
