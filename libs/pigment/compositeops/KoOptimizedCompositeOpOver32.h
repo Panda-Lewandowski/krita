@@ -75,11 +75,6 @@ struct OverCompositor32 {
     {
         Q_UNUSED(oparams);
 
-        typename KoStreamedMath<_impl>::uint16_16_v tempVar =
-                   KoStreamedMath<_impl>::template fetch_alpha_uint16<src_aligned>(src);
-        Q_UNUSED(tempVar);
-        qDebug() << ppVar(tempVar.size());
-
         Vc::float_v src_alpha;
         Vc::float_v dst_alpha;
 

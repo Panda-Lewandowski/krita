@@ -246,7 +246,7 @@ static inline void write_channels_32(quint8 *data,
     uint_v v4 = uint_v(int_v(Vc::round(c3)))  & mask; //
     v1 = v1 | v2;
     v3 = v3 | v4;
-    (v1 | v3).store((quint32*)data, Vc::Aligned);
+    (v1 | v3).store((quint32*)data, Vc::Aligned); //SEG foult
 }
 
 static inline void write_channels_uint16(quint8 *data,
@@ -254,17 +254,16 @@ static inline void write_channels_uint16(quint8 *data,
                                      Vc::uint16_v::AsArg c1,
                                      Vc::uint16_v::AsArg c2,
                                      Vc::uint16_v::AsArg c3) {
-
     const quint32 lowByteMask = 0xFF;
 
-    Vc::uint16_v mask(lowByteMask);
-    Vc::uint16_v v1 =  Vc::uint16_v(round(alpha)) << 24;
-    Vc::uint16_v v2 = (Vc::uint16_v(Vc::round(c1)) & mask) << 16;
-    Vc::uint16_v v3 = (Vc::uint16_v(Vc::round(c2)) & mask) <<  8;
-    Vc::uint16_v v4 = Vc::uint16_v(Vc::round(c3))  & mask;
+    uint32_16_v mask(lowByteMask);
+    uint32_16_v v1 =   uint32_16_v(round(alpha)) << 24;
+    uint32_16_v v2 = ( uint32_16_v(Vc::round(c1)) & mask) << 16;
+    uint32_16_v v3 = ( uint32_16_v(Vc::round(c2)) & mask) <<  8;
+    uint32_16_v v4 =  uint32_16_v(Vc::round(c3))  & mask;
     v1 = v1 | v2;
     v3 = v3 | v4;
-    (v1 | v3).store(data, Vc::Aligned);
+    (v1 | v3).store((quint32*)data, Vc::Aligned);
 }
 
 /**
@@ -272,12 +271,12 @@ static inline void write_channels_uint16(quint8 *data,
  * colorspaces. Uses \p Compositor strategy parameter for doing actual
  * math of the composition
  */
-template<bool useMask, bool useFlow, class Compositor, int pixelSize>
+template<bool useMask, bool useFlow, class Compositor, int pixelSize, int vectorSize>
     static void genericComposite(const KoCompositeOp::ParameterInfo& params)
 {
     using namespace Arithmetic;
 
-    const int vectorSize = Vc::float_v::size();
+    //const int vectorSize = Vc::float_v::size();
     const qint32 vectorInc = pixelSize * vectorSize;
     const qint32 linearInc = pixelSize;
     qint32 srcVectorInc = vectorInc;
@@ -431,13 +430,13 @@ template<bool useMask, bool useFlow, class Compositor, int pixelSize>
 template<bool useMask, bool useFlow, class Compositor>
     static void genericComposite32(const KoCompositeOp::ParameterInfo& params)
 {
-    genericComposite<useMask, useFlow, Compositor, 4>(params);
+    genericComposite<useMask, useFlow, Compositor, 4, Vc::uint16_v::size()>(params);
 }
 
 template<bool useMask, bool useFlow, class Compositor>
     static void genericComposite128(const KoCompositeOp::ParameterInfo& params)
 {
-    genericComposite<useMask, useFlow, Compositor, 16>(params);
+    genericComposite<useMask, useFlow, Compositor, 16, Vc::float_v::size()>(params);
 }
 
 };

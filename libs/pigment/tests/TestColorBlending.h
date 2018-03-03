@@ -21,13 +21,13 @@ class TestColorBlending : public QObject
     Q_OBJECT
 private Q_SLOTS:
     void init();
-    //void benchmark();
-    //void compareOverOps();
+    void benchmark();
+    void compareOverOps();
     //void compareOverOpsNoMask();
 
-    void mask_test(); //OK
-    void alpha_test();
-    void colors_test(); //OK
+    //void mask_test(); //OK
+    //void alpha_test();
+    //void colors_test(); //OK
     //void channels_test();
    // void test_blend();
 
@@ -156,14 +156,14 @@ struct OptimizedOverCompositor32 {
         using namespace Arithmetic;
         const qint32 alpha_pos = 3;
 
-        const float uint8Rec1 = 1.0 / 255.0;
-        const float uint8Max = 255.0;
+        const quint8 uint8Rec1 = 1 / 255;
+        const quint8 uint8Max = 255;
 
-        float srcAlpha = src[alpha_pos];
+        quint8 srcAlpha = src[alpha_pos];
         srcAlpha *= opacity;
 
         if (haveMask) {
-            srcAlpha *= float(*mask) * uint8Rec1;
+            srcAlpha *= quint8(*mask) * uint8Rec1;
         }
 
         if (srcAlpha != 0.0) {
