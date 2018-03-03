@@ -25,12 +25,17 @@ private Q_SLOTS:
     void compareOverOps();
     //void compareOverOpsNoMask();
 
-    //void mask_test(); //OK
-    //void alpha_test();
-    //void colors_test(); //OK
-    //void channels_test();
-   // void test_blend();
+    void mask_test(); //OK
+    void alpha_test(); //OK
+    void colors_test(); //OK
+    void channels_test();//OK
 
+
+    void checkRounding_05_03();
+    void checkRounding_05_05();
+    void checkRounding_05_07();
+    void checkRounding_05_10();
+    void checkRounding_05_10_08();
 
 };
 
