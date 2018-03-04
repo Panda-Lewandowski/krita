@@ -60,6 +60,7 @@ struct OptimizedOverCompositor32 {
         const QBitArray &channelFlags;
     };
 
+
     template<bool haveMask, bool src_aligned, Vc::Implementation _impl>
     static ALWAYS_INLINE void compositeVector(const quint8 *src,
                                               quint8 *dst, const quint8 *mask,
@@ -77,15 +78,19 @@ struct OptimizedOverCompositor32 {
         Vc::uint16_v opacity_norm_vec(opacity);
 
         Vc::uint16_v uint8Max(255);
-        Vc::uint16_v uint8MaxRec1(1/255);
+        //Vc::uint16_v uint8MaxRec1(1/255);
         Vc::uint16_v zeroValue(Vc::Zero);
         Vc::uint16_v oneValue(Vc::One);
 
-        src_alpha *= opacity_norm_vec;
+        src_alpha =KoStreamedMath<_impl>::optimizedVectorMultiply(src_alpha, opacity_norm_vec);
+        //src_alpha *= opacity_norm_vec;
+        //src_alpha = KoColorSpaceMaths<quint8>::multiply(src_alpha, opacity_norm_vec);
 
         if (haveMask) {
             Vc::uint16_v mask_vec = KoStreamedMath<_impl>::fetch_mask_8_uint16(mask);
-            src_alpha *= mask_vec * uint8MaxRec1;
+            //src_alpha *= mask_vec * uint8MaxRec;
+            //src_alpha = KoColorSpaceMaths<quint8>::multiply(src_alpha, mask_vec);
+            src_alpha = KoStreamedMath<_impl>::optimizedVectorMultiply(src_alpha, mask_vec);
         }
 
         // The source cannot change the colors in the destination,
@@ -111,7 +116,8 @@ struct OptimizedOverCompositor32 {
 
         if ((dst_alpha == uint8Max).isFull()) {
             new_alpha = dst_alpha;
-            src_blend = src_alpha * uint8MaxRec1;
+            //src_blend = src_alpha * uint8MaxRec1;
+            src_blend = src_alpha;
         } else if ((dst_alpha == zeroValue).isFull()) {
             new_alpha = src_alpha;
             src_blend = oneValue;
@@ -122,9 +128,14 @@ struct OptimizedOverCompositor32 {
              * when converted to integers these NaN values will
              * be converted to zeroes, which is exactly what we need
              */
-            new_alpha = dst_alpha + (uint8Max - dst_alpha) * src_alpha * uint8MaxRec1;
+            //new_alpha = dst_alpha + (uint8Max - dst_alpha) * src_alpha * uint8MaxRec1;
 
-            src_blend = src_alpha / new_alpha;
+            //src_blend = src_alpha / new_alpha;
+
+            //new_alpha = dst_alpha + KoColorSpaceMaths<quint8>::multiply((uint8Max - dst_alpha), src_alpha);
+            //src_blend = KoColorSpaceMaths<quint8>::divide(src_alpha, new_alpha);
+            new_alpha = KoStreamedMath<_impl>::optimizedVectorBlend(uint8Max, dst_alpha, src_alpha);
+            src_blend = KoStreamedMath<_impl>::optimizedVectorDevide(src_alpha, new_alpha);
 
 
         }
@@ -132,9 +143,17 @@ struct OptimizedOverCompositor32 {
         if (!(src_blend == oneValue).isFull()) {
             KoStreamedMath<_impl>::template fetch_colors_uint16<true>(dst, dst_c1, dst_c2, dst_c3);
 
-            dst_c1 = src_blend * (src_c1 - dst_c1) + dst_c1;
-            dst_c2 = src_blend * (src_c2 - dst_c2) + dst_c2;
-            dst_c3 = src_blend * (src_c3 - dst_c3) + dst_c3;
+//            dst_c1 = src_blend * (src_c1 - dst_c1) + dst_c1;
+//            dst_c2 = src_blend * (src_c2 - dst_c2) + dst_c2;
+//            dst_c3 = src_blend * (src_c3 - dst_c3) + dst_c3;
+
+            //dst_c1 = KoColorSpaceMaths<quint8>::multiply(src_blend, (src_c1 - dst_c1)) + dst_c1;
+            //dst_c2 = KoColorSpaceMaths<quint8>::multiply(src_blend, (src_c2 - dst_c2)) + dst_c2;
+            //dst_c3 = KoColorSpaceMaths<quint8>::multiply(src_blend, (src_c3 - dst_c3)) + dst_c3;
+
+            dst_c1 = KoStreamedMath<_impl>::optimizedVectorMultiply(src_blend, (src_c1 - dst_c1)) + dst_c1;
+            dst_c2 = KoStreamedMath<_impl>::optimizedVectorMultiply(src_blend, (src_c2 - dst_c2)) + dst_c2;
+            dst_c3 = KoStreamedMath<_impl>::optimizedVectorMultiply(src_blend, (src_c3 - dst_c3)) + dst_c3;
 
         } else {
             if (!haveMask && !haveOpacity) {
@@ -161,43 +180,48 @@ struct OptimizedOverCompositor32 {
         using namespace Arithmetic;
         const qint32 alpha_pos = 3;
 
-        const quint8 uint8Rec1 = 1 / 255;
+        //const quint8 uint8Rec1 = 1 / 255;
         const quint8 uint8Max = 255;
 
         quint8 srcAlpha = src[alpha_pos];
-        srcAlpha *= opacity;
+        srcAlpha = KoColorSpaceMaths<quint8>::multiply(srcAlpha, opacity);
 
         if (haveMask) {
-            srcAlpha *= quint8(*mask) * uint8Rec1;
+            //srcAlpha *= quint8(*mask) * uint8Rec1;
+            srcAlpha = KoColorSpaceMaths<quint8>::multiply(srcAlpha, quint8(*mask));
         }
 
         if (srcAlpha != 0.0) {
 
-            float dstAlpha = dst[alpha_pos];
-            float srcBlendNorm;
+            quint8 dstAlpha = dst[alpha_pos];
+            quint8 srcBlend;
 
             if (dstAlpha == uint8Max) {
-                srcBlendNorm = srcAlpha * uint8Rec1;
-            } else if (dstAlpha == 0.0) {
+                srcBlend = srcAlpha; //* uint8Rec1;
+            } else if (dstAlpha == 0) {
                 dstAlpha = srcAlpha;
-                srcBlendNorm = 1.0;
+                srcBlend = 255;
 
                 if (!allChannelsFlag) {
                     pixel_type *d = reinterpret_cast<pixel_type*>(dst);
                     *d = 0; // dstAlpha is already null
                 }
             } else {
-                dstAlpha += (uint8Max - dstAlpha) * srcAlpha * uint8Rec1;
+                //dstAlpha += (uint8Max - dstAlpha) * srcAlpha * uint8Rec1;
+
+                dstAlpha = KoColorSpaceMaths<quint8>::blend(uint8Max, dstAlpha, srcAlpha);
 
                 // Optimized version of:
-                //     srcBlendNorm = srcAlpha / dstAlpha);
-                srcBlendNorm = OptiDiv<_impl>::divScalar(srcAlpha, dstAlpha);
+                //     srcBlendNorm = srcAlpha / dstAlpha;
+                //srcBlendNorm = OptiDiv<_impl>::divScalar(srcAlpha, dstAlpha);
+
+                srcBlend = KoColorSpaceMaths<quint8>::divide(srcAlpha, dstAlpha);
 
 
             }
 
             if(allChannelsFlag) {
-                if (srcBlendNorm == 1.0) {
+                if (srcBlend == 255) {
                     if (!alphaLocked) {
                         const pixel_type *s = reinterpret_cast<const pixel_type*>(src);
                         pixel_type *d = reinterpret_cast<pixel_type*>(dst);
@@ -207,22 +231,29 @@ struct OptimizedOverCompositor32 {
                         dst[1] = src[1];
                         dst[2] = src[2];
                     }
-                } else if (srcBlendNorm != 0.0){
-                    dst[0] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[0], src[0], srcBlendNorm);
-                    dst[1] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[1], src[1], srcBlendNorm);
-                    dst[2] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[2], src[2], srcBlendNorm);
+                } else if (srcBlend != 0){
+//                    //qint16(b - a) * alpha + a
+//                    dst[0] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[0], src[0], srcBlend);
+//                    dst[1] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[1], src[1], srcBlend);
+//                    dst[2] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[2], src[2], srcBlend);
+                     dst[0] = KoColorSpaceMaths<quint8>::multiply(qint16(src[0] - dst[0]), srcBlend) + dst[0];
+                     dst[1] = KoColorSpaceMaths<quint8>::multiply(qint16(src[1] - dst[1]), srcBlend) + dst[1];
+                     dst[0] = KoColorSpaceMaths<quint8>::multiply(qint16(src[2] - dst[2]), srcBlend) + dst[2];
                 }
             } else {
                 const QBitArray &channelFlags = oparams.channelFlags;
 
-                if (srcBlendNorm == 1.0) {
+                if (srcBlend == 255) {
                     if(channelFlags.at(0)) dst[0] = src[0];
                     if(channelFlags.at(1)) dst[1] = src[1];
                     if(channelFlags.at(2)) dst[2] = src[2];
-                } else if (srcBlendNorm != 0.0) {
-                    if(channelFlags.at(0)) dst[0] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[0], src[0], srcBlendNorm);
-                    if(channelFlags.at(1)) dst[1] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[1], src[1], srcBlendNorm);
-                    if(channelFlags.at(2)) dst[2] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[2], src[2], srcBlendNorm);
+                } else if (srcBlend != 0) {
+//                    if(channelFlags.at(0)) dst[0] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[0], src[0], srcBlendNorm);
+//                    if(channelFlags.at(1)) dst[1] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[1], src[1], srcBlendNorm);
+//                    if(channelFlags.at(2)) dst[2] = KoStreamedMath<_impl>::lerp_mixed_u8_float(dst[2], src[2], srcBlendNorm);
+                    if(channelFlags.at(0)) dst[0] = KoColorSpaceMaths<quint8>::multiply(qint16(src[0] - dst[0]), srcBlend) + dst[0];
+                    if(channelFlags.at(1)) dst[1] = KoColorSpaceMaths<quint8>::multiply(qint16(src[1] - dst[1]), srcBlend) + dst[1];
+                    if(channelFlags.at(2)) dst[2] = KoColorSpaceMaths<quint8>::multiply(qint16(src[2] - dst[2]), srcBlend) + dst[2];
                 }
             }
 

@@ -266,6 +266,28 @@ static inline void write_channels_uint16(quint8 *data,
     (v1 | v3).store((quint32*)data, Vc::Aligned);
 }
 
+static inline Vc::uint16_v optimizedVectorMultiply(Vc::uint16_v a, Vc::uint16_v b)
+{
+    static const Vc::uint16_v offset(0x80u);
+    Vc::uint16_v c = a * b + offset;
+    return ((c >> 8) + c) >> 8;
+}
+
+static inline Vc::uint16_v optimizedVectorDevide(Vc::uint16_v a, Vc::uint16_v b)
+{
+    static const Vc::uint16_v part(2u);
+    Vc::uint16_v c = (a * UINT8_MAX + (b / part)) / b;
+    return c;
+}
+
+static inline Vc::uint16_v optimizedVectorBlend(Vc::uint16_v a, Vc::uint16_v b, Vc::uint16_v alpha)
+{
+    static const Vc::uint16_v offset(0x80u);
+    Vc::uint16_v c = (a - b) * alpha + offset;
+    c = ((c >> 8) + c) >> 8;
+    return c + b;
+}
+
 /**
  * Composes src pixels into dst pixles. Is optimized for 32-bit-per-pixel
  * colorspaces. Uses \p Compositor strategy parameter for doing actual
