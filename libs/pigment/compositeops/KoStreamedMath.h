@@ -152,7 +152,8 @@ static inline Vc::float_v fetch_alpha_32(const quint8 *data) {
 }
 
 template <bool aligned>
-static inline uint16_16_v fetch_alpha_uint16(const quint8 *data) {
+static inline uint16_16_v
+fetch_alpha_uint16(const quint8 *data) {
     uint32_16_v data_i;
    if (aligned) {
        data_i.load((const quint32*)data, Vc::Aligned);
